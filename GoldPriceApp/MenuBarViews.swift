@@ -5,10 +5,17 @@ struct MenuBarLabelView: View {
     @ObservedObject var viewModel: GoldPriceViewModel
 
     var body: some View {
-        Text(viewModel.menuBarTitle)
+        Text(alertText)
             .font(GoldPriceTheme.font(12, weight: .black))
-            .foregroundStyle(GoldPriceTheme.textPrimary)
+            .foregroundStyle(viewModel.alertTriggered ? .yellow : GoldPriceTheme.textPrimary)
             .monospacedDigit()
+    }
+
+    private var alertText: String {
+        guard viewModel.alertTriggered else {
+            return viewModel.menuBarTitle
+        }
+        return viewModel.alertFlashOn ? viewModel.menuBarTitle : "! 金价到了 !"
     }
 }
 
@@ -17,8 +24,33 @@ struct MenuBarPanelView: View {
     let openDashboard: () -> Void
     let quitApp: () -> Void
 
+    @State private var alertInput = ""
+    @State private var showHistory = false
+    @FocusState private var alertFieldFocused: Bool
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if let msg = viewModel.alertTriggeredMessage {
+                PixelPanel(fill: GoldPriceTheme.accentStrong.opacity(0.25), padding: 12) {
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(msg.components(separatedBy: "\n"), id: \.self) { line in
+                                Text("🔔 \(line)")
+                                    .font(GoldPriceTheme.font(line.hasPrefix("触发时间") ? 12 : 14, weight: .black))
+                                    .foregroundStyle(line.hasPrefix("触发时间") ? GoldPriceTheme.textSecondary : GoldPriceTheme.accentStrong)
+                            }
+                        }
+
+                        Spacer()
+
+                        Button("知道了") {
+                            viewModel.dismissTriggeredAlert()
+                        }
+                        .buttonStyle(PixelButtonStyle(prominent: true))
+                    }
+                }
+            }
+
             VStack(alignment: .leading, spacing: 1) {
                 Text("国际金价")
                     .font(GoldPriceTheme.font(15, weight: .black))
@@ -51,6 +83,8 @@ struct MenuBarPanelView: View {
                 priceBox(title: "USD / OZ", value: viewModel.latestPriceText)
                 priceBox(title: "RMB / 克", value: viewModel.latestPerGramCNYText)
             }
+
+            alertRow
 
             if viewModel.compactHistory.count > 1, let domain = chartDomain {
                 PixelPanel(fill: GoldPriceTheme.surfaceSecondary, padding: 10) {
@@ -90,8 +124,16 @@ struct MenuBarPanelView: View {
                 }
                 .buttonStyle(PixelButtonStyle())
 
+                Button("历史") {
+                    showHistory.toggle()
+                }
+                .buttonStyle(PixelButtonStyle())
+
                 Button("退出", action: quitApp)
                     .buttonStyle(PixelButtonStyle())
+            }
+            .popover(isPresented: $showHistory) {
+                alertHistoryList
             }
 
             if let errorMessage = viewModel.errorMessage {
@@ -106,6 +148,56 @@ struct MenuBarPanelView: View {
         .padding(14)
         .frame(width: 348, alignment: .leading)
         .background(GoldPriceTheme.canvas)
+    }
+
+    private var alertRow: some View {
+        PixelPanel(fill: GoldPriceTheme.surface, padding: 10) {
+            if let alertDesc = viewModel.alertDescription {
+                HStack {
+                    Text("🔔 \(alertDesc)")
+                        .font(GoldPriceTheme.font(12, weight: .bold))
+                        .foregroundStyle(GoldPriceTheme.textPrimary)
+
+                    Spacer()
+
+                    Button("取消") {
+                        viewModel.clearAlert()
+                    }
+                    .buttonStyle(PixelButtonStyle())
+                }
+            } else {
+                HStack(spacing: 8) {
+                    Text("提醒价")
+                        .font(GoldPriceTheme.font(11, weight: .bold))
+                        .foregroundStyle(GoldPriceTheme.textSecondary)
+
+                    TextField(
+                        viewModel.preferredCurrency == .usdPerOunce ? "USD/OZ" : "¥/克",
+                        text: $alertInput
+                    )
+                    .focused($alertFieldFocused)
+                    .textFieldStyle(.plain)
+                    .font(GoldPriceTheme.font(12, weight: .bold))
+                    .foregroundStyle(GoldPriceTheme.textPrimary)
+                    .frame(width: 96)
+                    .onSubmit { commitAlert() }
+
+                    Button("设定") {
+                        commitAlert()
+                    }
+                    .buttonStyle(PixelButtonStyle(prominent: true))
+                }
+            }
+        }
+    }
+
+    private func commitAlert() {
+        guard let price = Double(alertInput.trimmingCharacters(in: .whitespaces)), price > 0 else {
+            return
+        }
+        viewModel.setAlert(price: price)
+        alertInput = ""
+        alertFieldFocused = false
     }
 
     private func priceBox(title: String, value: String) -> some View {
@@ -131,6 +223,49 @@ struct MenuBarPanelView: View {
                 .foregroundStyle(GoldPriceTheme.textPrimary)
                 .lineLimit(1)
         }
+    }
+
+    private var alertHistoryList: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("提醒历史")
+                .font(GoldPriceTheme.font(14, weight: .black))
+                .foregroundStyle(GoldPriceTheme.textPrimary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+
+            Divider()
+
+            if viewModel.alertHistory.isEmpty {
+                Text("暂无提醒记录")
+                    .font(GoldPriceTheme.font(12, weight: .medium))
+                    .foregroundStyle(GoldPriceTheme.textSecondary)
+                    .padding(24)
+                    .frame(maxWidth: .infinity)
+            } else {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(viewModel.alertHistory) { record in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("目标 \(GoldPriceFormatting.rmb(record.targetPrice)) → 到达 \(GoldPriceFormatting.rmb(record.triggeredPrice))")
+                                    .font(GoldPriceTheme.font(12, weight: .bold))
+                                    .foregroundStyle(GoldPriceTheme.textPrimary)
+
+                                Text(GoldPriceFormatting.fullTime(record.timestamp))
+                                    .font(GoldPriceTheme.font(11, weight: .medium))
+                                    .foregroundStyle(GoldPriceTheme.textSecondary)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                            Divider()
+                        }
+                    }
+                }
+            }
+        }
+        .frame(width: 340, height: 400)
+        .background(GoldPriceTheme.canvas)
     }
 
     private var chartDomain: ClosedRange<Double>? {

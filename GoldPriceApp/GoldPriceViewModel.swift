@@ -1,10 +1,13 @@
 import Foundation
+import AppKit
 
 @MainActor
 final class GoldPriceViewModel: ObservableObject {
     static let maxHistoryPoints = 1_800
     private static let sourcePreferenceKey = "gold_price_source_preference"
     private static let currencyPreferenceKey = "gold_price_currency_preference"
+    private static let alertPriceKey = "gold_price_alert"
+    private static let alertHistoryKey = "gold_price_alert_history"
     private static let compactHistoryWindow: TimeInterval = 90
     private static let chartHistoryWindow: TimeInterval = 4 * 60
     private static let minimumHistoryStep: TimeInterval = 0.001
@@ -15,26 +18,39 @@ final class GoldPriceViewModel: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published private(set) var selectedSource: GoldPriceSourcePreference
     @Published private(set) var preferredCurrency: GoldPriceCurrencyPreference
+    @Published private(set) var alertPrice: Double?
+    @Published private(set) var alertCurrency: GoldPriceCurrencyPreference = .cnyPerGram
+    @Published private(set) var alertTriggered = false
+    @Published private(set) var alertTriggeredMessage: String?
+    @Published private(set) var alertTriggeredAt: Date?
+    @Published private(set) var alertFlashOn = false
+    @Published private(set) var alertHistory: [GoldQuote.AlertRecord] = []
+
+    private var alertFlashTimer: Timer?
+    private var alertSoundTimer: Timer?
 
     private let service: GoldPriceService
     private let refreshInterval: Duration
     private var refreshTask: Task<Void, Never>?
     private let userDefaults: UserDefaults
     private var refreshSequence = 0
-
     init(
         service: GoldPriceService = GoldPriceService(),
         refreshInterval: Duration = .seconds(1),
         autoStart: Bool = false,
         userDefaults: UserDefaults = .standard
     ) {
-        self.selectedSource = Self.loadSourcePreference(from: userDefaults)
-        self.preferredCurrency = Self.loadCurrencyPreference(from: userDefaults)
         self.service = service
         self.refreshInterval = refreshInterval
         self.userDefaults = userDefaults
+        self.selectedSource = Self.loadSourcePreference(from: userDefaults)
+        self.preferredCurrency = Self.loadCurrencyPreference(from: userDefaults)
+        let savedAlert = userDefaults.double(forKey: Self.alertPriceKey)
+        self.alertPrice = savedAlert == 0 ? nil : savedAlert
+        self.alertHistory = Self.loadAlertHistory(from: userDefaults)
 
         if autoStart {
+            GoldPriceLog.appStart()
             start()
         }
     }
@@ -53,6 +69,7 @@ final class GoldPriceViewModel: ObservableObject {
                 return
             }
 
+            GoldPriceLog.appStart()
             let clock = ContinuousClock()
             while !Task.isCancelled {
                 let cycleStartedAt = clock.now
@@ -64,6 +81,7 @@ final class GoldPriceViewModel: ObservableObject {
                         tolerance: .milliseconds(100)
                     )
                 } catch {
+                    GoldPriceLog.refreshSkipped(reason: "sleep interrupted: \(error.localizedDescription)")
                     return
                 }
             }
@@ -86,16 +104,20 @@ final class GoldPriceViewModel: ObservableObject {
         defer { isRefreshing = false }
 
         do {
+            GoldPriceLog.refreshStart(source: requestSource.displayName)
             let quote = try await service.fetchQuote(preferredSource: requestSource)
             guard requestSequence == refreshSequence, requestSource == selectedSource else {
+                GoldPriceLog.refreshSkipped(reason: "stale request (source changed)")
                 return
             }
+            GoldPriceLog.refreshSuccess(source: quote.sourceName, price: quote.pricePerOunce, cny: quote.pricePerGramCNY)
             apply(quote)
             errorMessage = nil
         } catch {
             guard requestSequence == refreshSequence, requestSource == selectedSource else {
                 return
             }
+            GoldPriceLog.refreshError(error, source: requestSource.displayName)
             errorMessage = error.localizedDescription
         }
     }
@@ -103,6 +125,118 @@ final class GoldPriceViewModel: ObservableObject {
     func toggleCurrency() {
         preferredCurrency = preferredCurrency == .usdPerOunce ? .cnyPerGram : .usdPerOunce
         userDefaults.set(preferredCurrency.rawValue, forKey: Self.currencyPreferenceKey)
+        GoldPriceLog.currencyToggled(to: preferredCurrency.displayName)
+    }
+
+    func setAlert(price: Double) {
+        alertPrice = price
+        alertCurrency = preferredCurrency
+        alertTriggered = false
+        alertTriggeredMessage = nil
+        alertTriggeredAt = nil
+        alertFlashOn = false
+        alertFlashTimer?.invalidate()
+        alertFlashTimer = nil
+        previousCNYForAlert = nil
+        userDefaults.set(price, forKey: Self.alertPriceKey)
+        GoldPriceLog.alertSet(price: price, currency: alertCurrency.displayName)
+    }
+
+    func clearAlert() {
+        alertPrice = nil
+        userDefaults.removeObject(forKey: Self.alertPriceKey)
+        GoldPriceLog.alertCleared()
+    }
+
+    func dismissTriggeredAlert() {
+        alertTriggered = false
+        alertTriggeredMessage = nil
+        alertTriggeredAt = nil
+        alertFlashOn = false
+        alertFlashTimer?.invalidate()
+        alertFlashTimer = nil
+        alertSoundTimer?.invalidate()
+        alertSoundTimer = nil
+        GoldPriceLog.alertDismissed()
+    }
+
+    var alertDescription: String? {
+        guard let price = alertPrice else { return nil }
+        switch alertCurrency {
+        case .usdPerOunce:
+            return "\(GoldPriceFormatting.usd(price)) / OZ"
+        case .cnyPerGram:
+            return "\(GoldPriceFormatting.rmb(price)) / 克"
+        }
+    }
+
+    private var previousCNYForAlert: Double?
+
+    private func checkAlert(from previousQuote: GoldQuote?, to newQuote: GoldQuote) {
+        guard let target = alertPrice, !alertTriggered else {
+            GoldPriceLog.debug("Alert check skipped | alertPrice=\(alertPrice?.description ?? "nil") triggered=\(alertTriggered)")
+            return
+        }
+
+        let prevPrice: Double?
+        let currPrice: Double
+        switch alertCurrency {
+        case .usdPerOunce:
+            prevPrice = previousQuote?.pricePerOunce ?? previousCNYForAlert
+            currPrice = newQuote.pricePerOunce
+            previousCNYForAlert = currPrice
+        case .cnyPerGram:
+            prevPrice = previousQuote?.pricePerGramCNY ?? previousCNYForAlert
+            guard let currCNY = newQuote.pricePerGramCNY else {
+                GoldPriceLog.warn("Alert check aborted | CNY rate unavailable")
+                return
+            }
+            currPrice = currCNY
+            previousCNYForAlert = currPrice
+        }
+
+        GoldPriceLog.alertCheck(previous: prevPrice, current: currPrice, target: target, currency: alertCurrency.displayName)
+
+        guard let prev = prevPrice else { return }
+
+        let crossed = (prev - target) * (currPrice - target) <= 0
+            && abs(currPrice - target) < max(target * 0.02, 1.0)
+
+        guard crossed else { return }
+
+        GoldPriceLog.alertTriggered(price: currPrice, currency: alertCurrency.displayName)
+        let now = Date()
+        let timeStr = GoldPriceFormatting.shortTime(now)
+        alertTriggered = true
+        alertTriggeredAt = now
+        alertFlashOn = true
+        alertFlashTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.alertFlashOn.toggle()
+            }
+        }
+        switch alertCurrency {
+        case .usdPerOunce:
+            alertTriggeredMessage = "金价已到达 \(GoldPriceFormatting.usd(currPrice)) / OZ\n触发时间：\(GoldPriceFormatting.fullTime(now))"
+        case .cnyPerGram:
+            alertTriggeredMessage = "金价已到达 \(GoldPriceFormatting.rmb(currPrice)) / 克\n触发时间：\(GoldPriceFormatting.fullTime(now))"
+        }
+        NSSound(named: .init("Glass"))?.play()
+        alertSoundTimer = Timer.scheduledTimer(withTimeInterval: 120, repeats: true) { [weak self] _ in
+            NSSound(named: .init("Glass"))?.play()
+        }
+
+        let record = GoldQuote.AlertRecord(
+            targetPrice: target,
+            triggeredPrice: currPrice,
+            currency: alertCurrency == .cnyPerGram ? "RMB" : "USD",
+            timestamp: now
+        )
+        alertHistory.insert(record, at: 0)
+        if alertHistory.count > 50 { alertHistory.removeLast() }
+        persistAlertHistory()
+
+        clearAlert()
     }
 
     func changeSource(to newSource: GoldPriceSourcePreference) async {
@@ -111,7 +245,9 @@ final class GoldPriceViewModel: ObservableObject {
             return
         }
 
+        let oldName = selectedSource.displayName
         selectedSource = newSource
+        GoldPriceLog.sourceChanged(from: oldName, to: newSource.displayName)
         userDefaults.set(newSource.rawValue, forKey: Self.sourcePreferenceKey)
         refreshSequence += 1
         history.removeAll()
@@ -228,6 +364,19 @@ final class GoldPriceViewModel: ObservableObject {
         return preference
     }
 
+    private func persistAlertHistory() {
+        guard let data = try? JSONEncoder().encode(alertHistory) else { return }
+        userDefaults.set(data, forKey: Self.alertHistoryKey)
+    }
+
+    private static func loadAlertHistory(from userDefaults: UserDefaults) -> [GoldQuote.AlertRecord] {
+        guard let data = userDefaults.data(forKey: alertHistoryKey),
+              let records = try? JSONDecoder().decode([GoldQuote.AlertRecord].self, from: data) else {
+            return []
+        }
+        return records
+    }
+
     private static func loadCurrencyPreference(from userDefaults: UserDefaults) -> GoldPriceCurrencyPreference {
         guard
             let rawValue = userDefaults.string(forKey: currencyPreferenceKey),
@@ -241,6 +390,16 @@ final class GoldPriceViewModel: ObservableObject {
 
     private func apply(_ quote: GoldQuote) {
         let previousQuote = self.quote
+
+        GoldPriceLog.currentPriceInfo(
+            usd: quote.pricePerOunce,
+            cnyPerGram: quote.pricePerGramCNY,
+            source: quote.sourceName,
+            alert: alertPrice
+        )
+
+        checkAlert(from: previousQuote, to: quote)
+
         self.quote = quote
 
         guard shouldAppendHistoryPoint(for: quote, previousQuote: previousQuote) else {

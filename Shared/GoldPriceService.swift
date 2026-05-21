@@ -108,12 +108,14 @@ struct GoldPriceService {
         }
 
         guard (200 ..< 300).contains(httpResponse.statusCode) else {
+            GoldPriceLog.warn("GoldAPI HTTP error \(httpResponse.statusCode)")
             throw GoldPriceServiceError.badStatus(httpResponse.statusCode)
         }
 
         let payload = try Self.decoder.decode(GoldAPIResponse.self, from: data)
 
         guard payload.price.isFinite, payload.price > 0 else {
+            GoldPriceLog.warn("GoldAPI invalid price=\(payload.price)")
             throw GoldPriceServiceError.invalidPayload
         }
         let fetchedAt = Date()
@@ -143,6 +145,7 @@ struct GoldPriceService {
         }
 
         guard let html = String(data: data, encoding: .utf8) else {
+            GoldPriceLog.warn("Kitco payload is not valid HTML")
             throw GoldPriceServiceError.invalidPayload
         }
 

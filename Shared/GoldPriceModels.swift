@@ -71,6 +71,22 @@ struct GoldQuote: Equatable {
         return pricePerOunceCNY / GoldPriceFormatting.gramsPerTroyOunce
     }
 
+    struct AlertRecord: Codable, Identifiable {
+        let targetPrice: Double
+        let triggeredPrice: Double
+        let currency: String
+        let timestamp: Date
+
+        var id: Date { timestamp }
+
+        var description: String {
+            let priceStr = GoldPriceFormatting.rmb(triggeredPrice, fractionDigits: 2)
+            let targetStr = GoldPriceFormatting.rmb(targetPrice, fractionDigits: 2)
+            let timeStr = GoldPriceFormatting.fullTime(timestamp)
+            return "目标 \(targetStr) → 到达 \(priceStr)\n\(timeStr)"
+        }
+    }
+
     static let preview = GoldQuote(
         pricePerOunce: 5_018.40,
         fetchedAt: .now.addingTimeInterval(-42),
