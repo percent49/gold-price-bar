@@ -1,5 +1,26 @@
 import Foundation
 
+enum GoldPriceCurrencyPreference: String, CaseIterable, Identifiable, Codable {
+    case usdPerOunce
+    case cnyPerGram
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .usdPerOunce: return "USD"
+        case .cnyPerGram:  return "RMB"
+        }
+    }
+
+    var menuBarLabel: String {
+        switch self {
+        case .usdPerOunce: return "$/OZ"
+        case .cnyPerGram:  return "¥/G"
+        }
+    }
+}
+
 enum GoldPriceSourcePreference: String, CaseIterable, Identifiable, Codable {
     case automatic
     case kitco

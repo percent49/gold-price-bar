@@ -34,6 +34,14 @@ enum GoldPriceFormatting {
         "$\(plain(value))"
     }
 
+    static func menuBarCNYPrice(_ value: Double) -> String {
+        "¥\(plain(value))"
+    }
+
+    static func menuBarUSDPerGram(_ value: Double) -> String {
+        "$\(plain(value))"
+    }
+
     static func shortTime(_ date: Date) -> String {
         date.formatted(date: .omitted, time: .shortened)
     }

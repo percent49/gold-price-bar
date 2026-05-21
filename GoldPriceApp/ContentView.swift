@@ -62,12 +62,19 @@ struct ContentView: View {
                     }
                     .frame(maxWidth: .infinity)
 
-                    Button("MANUAL REFRESH") {
-                        Task {
-                            await viewModel.refresh()
+                    HStack(spacing: 8) {
+                        Button("MANUAL REFRESH") {
+                            Task {
+                                await viewModel.refresh()
+                            }
                         }
+                        .buttonStyle(PixelButtonStyle(prominent: true))
+
+                        Button(viewModel.preferredCurrency == .usdPerOunce ? "💲 切换人民币 ¥" : "¥ 切换美元 💲") {
+                            viewModel.toggleCurrency()
+                        }
+                        .buttonStyle(PixelButtonStyle())
                     }
-                    .buttonStyle(PixelButtonStyle(prominent: true))
                 }
             }
             .frame(width: 312)

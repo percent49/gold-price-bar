@@ -39,6 +39,11 @@ struct MenuBarPanelView: View {
                     }
                     .buttonStyle(PixelToggleButtonStyle(selected: source == viewModel.selectedSource))
                 }
+
+                Button(viewModel.preferredCurrency == .usdPerOunce ? "💲切换¥" : "¥切换💲") {
+                    viewModel.toggleCurrency()
+                }
+                .buttonStyle(PixelButtonStyle(prominent: viewModel.preferredCurrency == .cnyPerGram))
             }
             .frame(maxWidth: .infinity)
 

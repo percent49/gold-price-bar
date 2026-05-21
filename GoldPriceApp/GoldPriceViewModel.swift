@@ -4,6 +4,7 @@ import Foundation
 final class GoldPriceViewModel: ObservableObject {
     static let maxHistoryPoints = 1_800
     private static let sourcePreferenceKey = "gold_price_source_preference"
+    private static let currencyPreferenceKey = "gold_price_currency_preference"
     private static let compactHistoryWindow: TimeInterval = 90
     private static let chartHistoryWindow: TimeInterval = 4 * 60
     private static let minimumHistoryStep: TimeInterval = 0.001
@@ -13,6 +14,7 @@ final class GoldPriceViewModel: ObservableObject {
     @Published private(set) var isRefreshing = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var selectedSource: GoldPriceSourcePreference
+    @Published private(set) var preferredCurrency: GoldPriceCurrencyPreference
 
     private let service: GoldPriceService
     private let refreshInterval: Duration
@@ -27,6 +29,7 @@ final class GoldPriceViewModel: ObservableObject {
         userDefaults: UserDefaults = .standard
     ) {
         self.selectedSource = Self.loadSourcePreference(from: userDefaults)
+        self.preferredCurrency = Self.loadCurrencyPreference(from: userDefaults)
         self.service = service
         self.refreshInterval = refreshInterval
         self.userDefaults = userDefaults
@@ -95,6 +98,11 @@ final class GoldPriceViewModel: ObservableObject {
             }
             errorMessage = error.localizedDescription
         }
+    }
+
+    func toggleCurrency() {
+        preferredCurrency = preferredCurrency == .usdPerOunce ? .cnyPerGram : .usdPerOunce
+        userDefaults.set(preferredCurrency.rawValue, forKey: Self.currencyPreferenceKey)
     }
 
     func changeSource(to newSource: GoldPriceSourcePreference) async {
@@ -186,7 +194,15 @@ final class GoldPriceViewModel: ObservableObject {
             return "Gold"
         }
 
-        return GoldPriceFormatting.menuBarPrice(quote.pricePerOunce)
+        switch preferredCurrency {
+        case .usdPerOunce:
+            return GoldPriceFormatting.menuBarPrice(quote.pricePerOunce)
+        case .cnyPerGram:
+            if let cny = quote.pricePerGramCNY {
+                return GoldPriceFormatting.menuBarCNYPrice(cny)
+            }
+            return GoldPriceFormatting.menuBarPrice(quote.pricePerOunce)
+        }
     }
 
     var compactHistory: [GoldPricePoint] {
@@ -207,6 +223,17 @@ final class GoldPriceViewModel: ObservableObject {
             let preference = GoldPriceSourcePreference(rawValue: rawValue)
         else {
             return .automatic
+        }
+
+        return preference
+    }
+
+    private static func loadCurrencyPreference(from userDefaults: UserDefaults) -> GoldPriceCurrencyPreference {
+        guard
+            let rawValue = userDefaults.string(forKey: currencyPreferenceKey),
+            let preference = GoldPriceCurrencyPreference(rawValue: rawValue)
+        else {
+            return .usdPerOunce
         }
 
         return preference
