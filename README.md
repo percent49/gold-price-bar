@@ -24,6 +24,7 @@
 - Second-level refresh in the main app
 - `USD / OZ` and `RMB / g` primary price display
 - Manual source switching: `Auto`, `Kitco`, `Gold API`
+- Currency toggle: switch menu bar display between USD/OZ and CNY/g
 - Detail window with a short-range price chart
 - `systemSmall` and `systemMedium` desktop widgets
 - Native SwiftUI implementation without third-party dependencies
