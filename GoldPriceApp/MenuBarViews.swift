@@ -84,6 +84,29 @@ struct MenuBarPanelView: View {
                 priceBox(title: "RMB / 克", value: viewModel.latestPerGramCNYText)
             }
 
+            // Other data sources
+            if !viewModel.otherSourceItems.isEmpty {
+                VStack(spacing: 2) {
+                    ForEach(viewModel.otherSourceItems) { item in
+                        HStack {
+                            Text(item.name)
+                                .font(GoldPriceTheme.font(11, weight: .bold))
+                                .foregroundStyle(GoldPriceTheme.textSecondary)
+                            Spacer()
+                            Text(item.priceText)
+                                .font(GoldPriceTheme.font(12, weight: .bold))
+                                .foregroundStyle(GoldPriceTheme.textPrimary)
+                                .monospacedDigit()
+                        }
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                    }
+                }
+                .padding(8)
+                .background(GoldPriceTheme.surface)
+                .overlay(Rectangle().stroke(GoldPriceTheme.border, lineWidth: 1))
+            }
+
             alertRow
 
             if viewModel.compactHistory.count > 1, let domain = chartDomain {

@@ -46,6 +46,7 @@
 		A10000000000000000000237 /* FREDHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000128 /* FREDHelpers.swift */; };
 		A10000000000000000000238 /* DataSourceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000129 /* DataSourceManager.swift */; };
 		A10000000000000000000239 /* DataSourceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000129 /* DataSourceManager.swift */; };
+		A10000000000000000000240 /* CorrelationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000108 /* CorrelationView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -80,6 +81,7 @@
 		A10000000000000000000105 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A10000000000000000000106 /* DashboardWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardWindowController.swift; sourceTree = "<group>"; };
 		A10000000000000000000107 /* MenuBarViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarViews.swift; sourceTree = "<group>"; };
+		A10000000000000000000108 /* CorrelationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CorrelationView.swift; sourceTree = "<group>"; };
 		A10000000000000000000111 /* GoldPriceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldPriceModels.swift; sourceTree = "<group>"; };
 		A10000000000000000000112 /* GoldPriceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldPriceService.swift; sourceTree = "<group>"; };
 		A10000000000000000000113 /* Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatting.swift; sourceTree = "<group>"; };
@@ -148,6 +150,7 @@
 				A10000000000000000000103 /* GoldPriceViewModel.swift */,
 				A10000000000000000000106 /* DashboardWindowController.swift */,
 				A10000000000000000000107 /* MenuBarViews.swift */,
+				A10000000000000000000108 /* CorrelationView.swift */,
 				A10000000000000000000105 /* Assets.xcassets */,
 				A10000000000000000000104 /* GoldPriceApp.entitlements */,
 			);
@@ -305,6 +308,7 @@
 				A10000000000000000000234 /* UST10YDataSource.swift in Sources */,
 				A10000000000000000000236 /* FREDHelpers.swift in Sources */,
 				A10000000000000000000238 /* DataSourceManager.swift in Sources */,
+				A10000000000000000000240 /* CorrelationView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -8,18 +8,24 @@ struct ContentView: View {
         ZStack {
             GoldPriceTheme.canvas.ignoresSafeArea()
 
-            VStack(alignment: .leading, spacing: 20) {
-                header
-                quoteRow
-                chartPanel
+            HStack(alignment: .top, spacing: 0) {
+                // Main content (existing)
+                VStack(alignment: .leading, spacing: 20) {
+                    header
+                    quoteRow
+                    chartPanel
 
-                if let errorMessage = viewModel.errorMessage {
-                    errorBanner(errorMessage)
+                    if let errorMessage = viewModel.errorMessage {
+                        errorBanner(errorMessage)
+                    }
                 }
+                .padding(24)
+
+                // Correlation panel
+                CorrelationPanelView(correlations: viewModel.correlations)
             }
-            .padding(24)
         }
-        .frame(minWidth: 820, minHeight: 580)
+        .frame(minWidth: 1080, minHeight: 580)
     }
 
     private var header: some View {

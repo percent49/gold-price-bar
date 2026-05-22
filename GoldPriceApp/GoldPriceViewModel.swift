@@ -26,6 +26,18 @@ final class GoldPriceViewModel: ObservableObject {
     @Published private(set) var alertFlashOn = false
     @Published private(set) var alertHistory: [GoldQuote.AlertRecord] = []
 
+    // Multi-source support
+    private let dataSourceManager = DataSourceManager.shared
+    @Published private(set) var sourceQuotes: [String: DataSourceQuote] = [:]
+    @Published private(set) var correlations: [SourceCorrelation] = []
+    @Published private(set) var otherSourceItems: [OtherSourceItem] = []
+
+    struct OtherSourceItem: Identifiable {
+        let id: String
+        let name: String
+        let priceText: String
+    }
+
     private var alertFlashTimer: Timer?
     private var alertSoundTimer: Timer?
 
@@ -52,6 +64,7 @@ final class GoldPriceViewModel: ObservableObject {
         if autoStart {
             GoldPriceLog.appStart()
             start()
+            startMultiSourceSync()
         }
     }
 
@@ -449,5 +462,40 @@ final class GoldPriceViewModel: ObservableObject {
         }
 
         return lastTimestamp.addingTimeInterval(Self.minimumHistoryStep)
+    }
+
+    // MARK: - Multi-Source Sync
+
+    func syncMultiSource() {
+        Task {
+            let quotes = await dataSourceManager.quotes
+            await MainActor.run {
+                sourceQuotes = quotes
+                otherSourceItems = [
+                    OtherSourceItem(id: "silver", name: "白银", priceText: formatQuote(quotes["silver"])),
+                    OtherSourceItem(id: "dxy", name: "美元指数", priceText: formatQuote(quotes["dxy"])),
+                    OtherSourceItem(id: "ust10y", name: "10Y美债", priceText: formatQuote(quotes["ust10y"])),
+                ]
+            }
+            let corr = await dataSourceManager.correlations
+            await MainActor.run {
+                correlations = corr
+            }
+        }
+    }
+
+    private func formatQuote(_ quote: DataSourceQuote?) -> String {
+        guard let q = quote else { return "--" }
+        return String(format: "%.2f", q.price)
+    }
+
+    private func startMultiSourceSync() {
+        Task { [weak self] in
+            guard let self else { return }
+            while !Task.isCancelled {
+                await self.syncMultiSource()
+                try? await Task.sleep(for: .seconds(2))
+            }
+        }
     }
 }
