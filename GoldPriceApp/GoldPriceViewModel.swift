@@ -481,7 +481,6 @@ final class GoldPriceViewModel: ObservableObject {
                 dataPointCounts = counts
                 dataSyncedAt = Date()
                 correlations = corr
-                // 回填进行中：数据点 < 365（一年不到）且 DXY/US10Y 只有少量数据说明刚开始
                 let totalPoints = counts.values.reduce(0, +)
                 isBackfilling = totalPoints < 365 * 4 && !quotes.isEmpty
             }
@@ -524,7 +523,13 @@ final class GoldPriceViewModel: ObservableObject {
             unit: "USD/桶"
         )
 
-        return [silverItem, oilItem, dxyItem, ustItem]
+        let fxItem = OtherSourceItem(
+            id: "usdcny", name: "汇率",
+            priceText: quotes["usdcny"].map { String(format: "%.4f", $0.price) } ?? "--",
+            unit: "CNY/USD"
+        )
+
+        return [silverItem, oilItem, fxItem, dxyItem, ustItem]
     }
 
     private func startMultiSourceSync() {

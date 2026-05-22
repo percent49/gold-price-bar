@@ -75,8 +75,8 @@ actor DataSourceManager {
             if let saved = defaults.object(forKey: cursorKey) as? Date {
                 cursor = saved
             } else {
-                // 首次：从 20 年前开始
-                cursor = targetFrom
+                // 首次：从昨天往前 90 天开始（优先拉最近数据）
+                cursor = max(calendar.date(byAdding: .day, value: -Self.backfillChunkDays, to: yesterday) ?? targetFrom, targetFrom)
             }
 
             while !Task.isCancelled && cursor < yesterday {

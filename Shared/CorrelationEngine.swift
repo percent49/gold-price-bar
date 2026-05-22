@@ -10,7 +10,10 @@ actor CorrelationEngine {
 
     func compute(baseSourceID: String, targetSourceID: String, window: TimeWindow) async -> CorrelationResult? {
         let calendar = Calendar.current
-        let to = Date()
+        // 用数据里实际存在的最大日期，而非今天（回填尚未完成时今天可能是孤点）
+        let baseLatest = await db.getLastDate(sourceID: baseSourceID) ?? Date()
+        let targetLatest = await db.getLastDate(sourceID: targetSourceID) ?? Date()
+        let to = min(baseLatest, targetLatest)
         guard let from = calendar.date(byAdding: .day, value: -window.days, to: to) else {
             return nil
         }

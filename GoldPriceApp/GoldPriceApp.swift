@@ -38,6 +38,7 @@ struct GoldPriceApp: App {
                 try await DataSourceManager.shared.register(SilverDataSource())
                 try await DataSourceManager.shared.register(OilDataSource())
                 if !fredKey.isEmpty {
+                    try await DataSourceManager.shared.register(ExchangeRateDataSource(apiKey: fredKey))
                     try await DataSourceManager.shared.register(DXYDataSource(apiKey: fredKey))
                     try await DataSourceManager.shared.register(UST10YDataSource(apiKey: fredKey))
                 }

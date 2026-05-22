@@ -62,6 +62,12 @@ struct ContentView: View {
                 symbolColor: GoldPriceTheme.textPrimary
             )
             sourceCard(
+                symbol: "¥/$", name: "汇率", unit: "CNY/USD",
+                price: viewModel.otherSourceItems.first(where: { $0.id == "usdcny" })?.priceText ?? "--",
+                change: "--",
+                symbolColor: GoldPriceTheme.textSecondary
+            )
+            sourceCard(
                 symbol: "DXY", name: "美元指数", unit: "指数",
                 price: viewModel.otherSourceItems.first(where: { $0.id == "dxy" })?.priceText ?? "--",
                 change: "--",
