@@ -59,7 +59,8 @@ final class GoldDataSource: DataSource, @unchecked Sendable {
             sourceUpdatedAt: result.timestamp,
             sourceName: "Kitco",
             sourceID: id,
-            currency: "USD"
+            currency: "USD",
+            usdToCNYRate: result.usdToCNYRate
         )
     }
 

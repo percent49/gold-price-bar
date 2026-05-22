@@ -40,25 +40,25 @@ struct ContentView: View {
                 .padding(.vertical, 16)
 
             sourceCard(
-                symbol: "Au", name: "黄金", unit: "USD/OZ",
-                price: viewModel.latestPriceText,
+                symbol: "Au", name: "黄金", unit: "¥/克",
+                price: viewModel.latestPerGramCNYText,
                 change: viewModel.sessionMove ?? "--",
                 symbolColor: GoldPriceTheme.accentStrong
             )
             sourceCard(
-                symbol: "Ag", name: "白银", unit: "USD/OZ",
+                symbol: "Ag", name: "白银", unit: "¥/克",
                 price: viewModel.otherSourceItems.first(where: { $0.id == "silver" })?.priceText ?? "--",
                 change: "--",
                 symbolColor: GoldPriceTheme.textSecondary
             )
             sourceCard(
-                symbol: "DXY", name: "美元指数", unit: "",
+                symbol: "DXY", name: "美元指数", unit: "指数",
                 price: viewModel.otherSourceItems.first(where: { $0.id == "dxy" })?.priceText ?? "--",
                 change: "--",
                 symbolColor: GoldPriceTheme.textPrimary
             )
             sourceCard(
-                symbol: "US10Y", name: "10Y美债", unit: "%",
+                symbol: "US10Y", name: "10Y美债", unit: "年化收益率",
                 price: viewModel.otherSourceItems.first(where: { $0.id == "ust10y" })?.priceText ?? "--",
                 change: "--",
                 symbolColor: GoldPriceTheme.textPrimary

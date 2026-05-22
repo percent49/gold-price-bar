@@ -36,6 +36,7 @@ final class GoldPriceViewModel: ObservableObject {
         let id: String
         let name: String
         let priceText: String
+        let unit: String
     }
 
     private var alertFlashTimer: Timer?
@@ -471,11 +472,7 @@ final class GoldPriceViewModel: ObservableObject {
             let quotes = await dataSourceManager.quotes
             await MainActor.run {
                 sourceQuotes = quotes
-                otherSourceItems = [
-                    OtherSourceItem(id: "silver", name: "白银", priceText: formatQuote(quotes["silver"])),
-                    OtherSourceItem(id: "dxy", name: "美元指数", priceText: formatQuote(quotes["dxy"])),
-                    OtherSourceItem(id: "ust10y", name: "10Y美债", priceText: formatQuote(quotes["ust10y"])),
-                ]
+                otherSourceItems = buildOtherItems(quotes: quotes)
             }
             let corr = await dataSourceManager.correlations
             await MainActor.run {
@@ -484,9 +481,37 @@ final class GoldPriceViewModel: ObservableObject {
         }
     }
 
-    private func formatQuote(_ quote: DataSourceQuote?) -> String {
-        guard let q = quote else { return "--" }
-        return String(format: "%.2f", q.price)
+    private func buildOtherItems(quotes: [String: DataSourceQuote]) -> [OtherSourceItem] {
+        // 从黄金报价里拿汇率
+        let usdToCNYRate = quotes["gold"]?.usdToCNYRate
+
+        let silverItem: OtherSourceItem
+        if let silver = quotes["silver"] {
+            let cnyPerGram: String
+            if let rate = usdToCNYRate, rate > 0 {
+                let rmb = silver.price * rate / 31.1035
+                cnyPerGram = String(format: "%.2f", rmb)
+            } else {
+                cnyPerGram = "--"
+            }
+            silverItem = OtherSourceItem(id: "silver", name: "白银", priceText: cnyPerGram, unit: "¥/克")
+        } else {
+            silverItem = OtherSourceItem(id: "silver", name: "白银", priceText: "--", unit: "¥/克")
+        }
+
+        let dxyItem = OtherSourceItem(
+            id: "dxy", name: "美元指数",
+            priceText: quotes["dxy"].map { String(format: "%.2f", $0.price) } ?? "--",
+            unit: "指数"
+        )
+
+        let ustItem = OtherSourceItem(
+            id: "ust10y", name: "10Y美债",
+            priceText: quotes["ust10y"].map { String(format: "%.2f%%", $0.price) } ?? "--",
+            unit: "年化收益率"
+        )
+
+        return [silverItem, dxyItem, ustItem]
     }
 
     private func startMultiSourceSync() {

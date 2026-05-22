@@ -89,8 +89,8 @@ struct MenuBarPanelView: View {
                 VStack(spacing: 2) {
                     ForEach(viewModel.otherSourceItems) { item in
                         HStack {
-                            Text(item.name)
-                                .font(GoldPriceTheme.font(11, weight: .bold))
+                            Text("\(item.name) (\(item.unit))")
+                                .font(GoldPriceTheme.font(10, weight: .bold))
                                 .foregroundStyle(GoldPriceTheme.textSecondary)
                             Spacer()
                             Text(item.priceText)

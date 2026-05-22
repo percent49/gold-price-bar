@@ -24,6 +24,7 @@ struct DataSourceQuote: Sendable, Codable, Equatable {
     let sourceName: String
     let sourceID: String
     let currency: String
+    var usdToCNYRate: Double?
 }
 
 // MARK: - Daily Price Point
