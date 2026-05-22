@@ -192,6 +192,22 @@ actor DatabaseManager {
         return result
     }
 
+    func countAllPoints() -> [String: Int] {
+        let sql = "SELECT source_id, COUNT(*) FROM daily_prices GROUP BY source_id;"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [:] }
+        guard let stmt else { return [:] }
+        defer { sqlite3_finalize(stmt) }
+
+        var result: [String: Int] = [:]
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            let id = String(cString: sqlite3_column_text(stmt, 0))
+            let count = Int(sqlite3_column_int(stmt, 1))
+            result[id] = count
+        }
+        return result
+    }
+
     // MARK: - Helpers
 
     private static let dateFormatter: DateFormatter = {

@@ -25,7 +25,11 @@ struct ContentView: View {
                 .padding(24)
 
                 // Right: correlation panel
-                CorrelationPanelView(correlations: viewModel.correlations)
+                CorrelationPanelView(
+                    correlations: viewModel.correlations,
+                    pointCounts: viewModel.dataPointCounts,
+                    isBackfilling: viewModel.isBackfilling
+                )
             }
         }
         .frame(minWidth: 1080, minHeight: 580)
@@ -101,9 +105,15 @@ struct ContentView: View {
                 .foregroundStyle(GoldPriceTheme.textSecondary)
                 .padding(.leading, 38)
         }
+        .frame(height: 76)
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(GoldPriceTheme.surfaceSecondary)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(GoldPriceTheme.border.opacity(0.15))
+                .frame(height: 1)
+                .padding(.horizontal, 8)
+        }
     }
 
     private var header: some View {

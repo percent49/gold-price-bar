@@ -31,6 +31,9 @@ final class GoldPriceViewModel: ObservableObject {
     @Published private(set) var sourceQuotes: [String: DataSourceQuote] = [:]
     @Published private(set) var correlations: [SourceCorrelation] = []
     @Published private(set) var otherSourceItems: [OtherSourceItem] = []
+    @Published private(set) var dataPointCounts: [String: Int] = [:]
+    @Published private(set) var dataSyncedAt: Date?
+    @Published private(set) var isBackfilling: Bool = false
 
     struct OtherSourceItem: Identifiable {
         let id: String
@@ -470,13 +473,17 @@ final class GoldPriceViewModel: ObservableObject {
     func syncMultiSource() {
         Task {
             let quotes = await dataSourceManager.quotes
+            let counts = await dataSourceManager.db.countAllPoints()
+            let corr = await dataSourceManager.correlations
             await MainActor.run {
                 sourceQuotes = quotes
                 otherSourceItems = buildOtherItems(quotes: quotes)
-            }
-            let corr = await dataSourceManager.correlations
-            await MainActor.run {
+                dataPointCounts = counts
+                dataSyncedAt = Date()
                 correlations = corr
+                // 回填进行中：数据点 < 365（一年不到）且 DXY/US10Y 只有少量数据说明刚开始
+                let totalPoints = counts.values.reduce(0, +)
+                isBackfilling = totalPoints < 365 * 4 && !quotes.isEmpty
             }
         }
     }
