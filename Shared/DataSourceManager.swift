@@ -14,7 +14,7 @@ actor DataSourceManager {
 
     // 渐进式回填：每天拉 90 天数据，间隔 5 分钟，不触发限流
     private nonisolated static let backfillChunkDays = 90
-    private nonisolated static let backfillCooldownSeconds: TimeInterval = 300
+    private nonisolated static let backfillCooldownSeconds: TimeInterval = 60
 
     init(db: DatabaseManager = .shared) {
         self.db = db
@@ -77,13 +77,15 @@ actor DataSourceManager {
                 let chunkFrom: Date
                 let chunkTo: Date
                 if let lastKnownDate {
-                    // 已有数据，向前补 90 天
-                    chunkTo = lastKnownDate
-                    chunkFrom = max(calendar.date(byAdding: .day, value: -Self.backfillChunkDays, to: lastKnownDate) ?? targetFrom, targetFrom)
+                    // 已有数据，从最新的日期继续向现在拉
+                    chunkFrom = lastKnownDate
+                    let nextChunk = calendar.date(byAdding: .day, value: Self.backfillChunkDays, to: lastKnownDate) ?? to
+                    chunkTo = min(nextChunk, yesterday)
                 } else {
                     // 一条都没有，从 20 年前开始拉
                     chunkFrom = targetFrom
-                    chunkTo = min(calendar.date(byAdding: .day, value: Self.backfillChunkDays, to: targetFrom) ?? to, to)
+                    let firstChunk = calendar.date(byAdding: .day, value: Self.backfillChunkDays, to: targetFrom) ?? to
+                    chunkTo = min(firstChunk, yesterday)
                 }
 
                 guard chunkFrom < chunkTo else { break }
