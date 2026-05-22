@@ -37,7 +37,7 @@ struct ContentView: View {
 
     private var sourceListPanel: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("MARKET DATA")
+            Text("行情数据")
                 .font(GoldPriceTheme.font(10, weight: .bold))
                 .foregroundStyle(GoldPriceTheme.textSecondary)
                 .padding(.horizontal, 12)
@@ -127,11 +127,11 @@ struct ContentView: View {
                             .font(GoldPriceTheme.font(28, weight: .black))
                             .foregroundStyle(GoldPriceTheme.textPrimary)
 
-                        Text("PIXEL BOARD")
+                        Text("实时金价面板")
                             .font(GoldPriceTheme.font(11, weight: .bold))
                             .foregroundStyle(GoldPriceTheme.textSecondary)
 
-                        Text("\(viewModel.sourceName) / 1S REFRESH / 4 MIN WINDOW")
+                        Text("\(viewModel.sourceName) / 秒级刷新 / 4 分钟窗口")
                             .font(GoldPriceTheme.font(12, weight: .medium))
                             .foregroundStyle(GoldPriceTheme.textSecondary)
                     }
@@ -140,7 +140,7 @@ struct ContentView: View {
 
             PixelPanel(fill: GoldPriceTheme.surface, padding: 12) {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("DATA SOURCE")
+                    Text("数据源")
                         .font(GoldPriceTheme.font(11, weight: .bold))
                         .foregroundStyle(GoldPriceTheme.textSecondary)
 
@@ -157,7 +157,7 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity)
 
                     HStack(spacing: 8) {
-                        Button("MANUAL REFRESH") {
+                        Button("手动刷新") {
                             Task {
                                 await viewModel.refresh()
                             }
@@ -178,13 +178,13 @@ struct ContentView: View {
     private var quoteRow: some View {
         HStack(alignment: .top, spacing: 18) {
             quoteBlock(
-                title: "USD / OZ",
+                title: "美元/盎司",
                 value: viewModel.latestPriceText,
                 detail: "≈ \(viewModel.latestPerGramText) / G"
             )
 
             quoteBlock(
-                title: "RMB / 克",
+                title: "人民币/克",
                 value: viewModel.latestPerGramCNYText,
                 detail: "≈ \(viewModel.latestPriceCNYText) / 盎司"
             )
@@ -196,11 +196,11 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("LAST 4 MIN")
+                        Text("最近 4 分钟")
                             .font(GoldPriceTheme.font(16, weight: .black))
                             .foregroundStyle(GoldPriceTheme.textPrimary)
 
-                        Text("KITCO / GOLD API TICK TRACE")
+                        Text("Kitco / Gold API 实时走势")
                             .font(GoldPriceTheme.font(11, weight: .bold))
                             .foregroundStyle(GoldPriceTheme.textSecondary)
                     }
@@ -208,11 +208,11 @@ struct ContentView: View {
                     Spacer()
 
                     HStack(spacing: 8) {
-                        infoTag("SOURCE", viewModel.sourceName)
+                        infoTag("来源", viewModel.sourceName)
                         if let latestUpdatedText = viewModel.latestUpdatedText {
-                            infoTag("UPDATE", latestUpdatedText)
+                            infoTag("更新", latestUpdatedText)
                         }
-                        infoTag("MOVE", viewModel.sessionMove ?? "--")
+                        infoTag("波动", viewModel.sessionMove ?? "--")
                     }
                 }
 
@@ -239,7 +239,7 @@ struct ContentView: View {
                     .frame(height: 250)
                 } else {
                     PixelPanel(fill: GoldPriceTheme.surfaceSecondary, padding: 16) {
-                        Text("SAMPLING PRICE DATA...")
+                        Text("正在采集价格数据...")
                             .font(GoldPriceTheme.font(13, weight: .bold))
                             .foregroundStyle(GoldPriceTheme.textSecondary)
                             .frame(maxWidth: .infinity, minHeight: 214, alignment: .leading)
@@ -287,7 +287,7 @@ struct ContentView: View {
 
     private func errorBanner(_ message: String) -> some View {
         PixelPanel(fill: GoldPriceTheme.negative.opacity(0.18), padding: 12) {
-            Text("ERROR / \(message)")
+            Text("错误 / \(message)")
                 .font(GoldPriceTheme.font(12, weight: .bold))
                 .foregroundStyle(GoldPriceTheme.textPrimary)
         }

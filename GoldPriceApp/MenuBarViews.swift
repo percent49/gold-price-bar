@@ -80,8 +80,8 @@ struct MenuBarPanelView: View {
             .frame(maxWidth: .infinity)
 
             HStack(alignment: .top, spacing: 10) {
-                priceBox(title: "USD / OZ", value: viewModel.latestPriceText)
-                priceBox(title: "RMB / 克", value: viewModel.latestPerGramCNYText)
+                priceBox(title: "美元/盎司", value: viewModel.latestPriceText)
+                priceBox(title: "人民币/克", value: viewModel.latestPerGramCNYText)
             }
 
             // Other data sources
@@ -131,7 +131,7 @@ struct MenuBarPanelView: View {
 
             HStack(spacing: 8) {
                 if let latestUpdatedText = viewModel.latestUpdatedText {
-                    infoChip("UPD \(latestUpdatedText)")
+                    infoChip("更新 \(latestUpdatedText)")
                 }
                 infoChip(viewModel.sessionMove ?? "--")
             }
