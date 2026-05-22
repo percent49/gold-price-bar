@@ -15,7 +15,7 @@ protocol DataSource: AnyObject, Sendable {
 
 // MARK: - Quote Model
 
-struct DataSourceQuote: Sendable, Equatable {
+struct DataSourceQuote: Sendable, Codable, Equatable {
     let price: Double
     let bid: Double?
     let ask: Double?
@@ -35,15 +35,6 @@ struct DailyPricePoint: Sendable, Codable, Equatable {
     let high: Double
     let low: Double
     let close: Double
-
-    init(sourceID: String, date: Date, open: Double, high: Double, low: Double, close: Double) {
-        self.sourceID = sourceID
-        self.date = date
-        self.open = open
-        self.high = high
-        self.low = low
-        self.close = close
-    }
 }
 
 // MARK: - Data Source Info (for registration)
