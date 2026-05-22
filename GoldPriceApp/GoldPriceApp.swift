@@ -28,14 +28,14 @@ struct GoldPriceApp: App {
             let fredKey = ProcessInfo.processInfo.environment["FRED_API_KEY"] ?? ""
             do {
                 try await DataSourceManager.shared.db.open()
-                try await DataSourceManager.shared.register(GoldDataSource())
+                try await DataSourceManager.shared.register(GoldDataSource(apiKey: fredKey))
                 try await DataSourceManager.shared.register(SilverDataSource())
                 if !fredKey.isEmpty {
                     try await DataSourceManager.shared.register(DXYDataSource(apiKey: fredKey))
                     try await DataSourceManager.shared.register(UST10YDataSource(apiKey: fredKey))
                 }
                 await DataSourceManager.shared.startAll()
-                await DataSourceManager.shared.bootstrapHistory(yearsBack: 20)
+                await DataSourceManager.shared.startProgressiveBackfill(yearsBack: 20)
             } catch {
                 print("DataSource init error: \(error.localizedDescription)")
             }

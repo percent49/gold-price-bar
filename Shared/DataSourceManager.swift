@@ -5,11 +5,16 @@ actor DataSourceManager {
 
     private var sources: [any DataSource] = []
     private var refreshTasks: [String: Task<Void, Never>] = [:]
+    private var backfillTasks: [String: Task<Void, Never>] = [:]
     let db: DatabaseManager
     private let engine: CorrelationEngine
 
     private var _quotes: [String: DataSourceQuote] = [:]
     var quotes: [String: DataSourceQuote] { _quotes }
+
+    // 渐进式回填：每天拉 90 天数据，间隔 5 分钟，不触发限流
+    private nonisolated static let backfillChunkDays = 90
+    private nonisolated static let backfillCooldownSeconds: TimeInterval = 300
 
     init(db: DatabaseManager = .shared) {
         self.db = db
@@ -36,21 +41,64 @@ actor DataSourceManager {
         refreshTasks.removeAll()
     }
 
-    func bootstrapHistory(yearsBack: Int = 20) async {
-        let calendar = Calendar.current
-        let to = Date()
-        guard let from = calendar.date(byAdding: .year, value: -yearsBack, to: to) else { return }
-
+    func startProgressiveBackfill(yearsBack: Int = 20) {
         for source in sources where source.enabled {
-            let lastDate = await db.getLastDate(sourceID: source.id) ?? from
-            let yesterday = calendar.date(byAdding: .day, value: -1, to: to) ?? to
-            if lastDate < yesterday {
-                do {
-                    let points = try await source.fetchHistory(from: lastDate, to: to)
-                    try await db.upsertDailyPrices(points)
-                } catch {
-                    GoldPriceLog.warn("历史数据导入失败 [\(source.id)]: \(error.localizedDescription)")
+            startBackfillTask(for: source, yearsBack: yearsBack)
+        }
+    }
+
+    func stopBackfill() {
+        for (_, task) in backfillTasks {
+            task.cancel()
+        }
+        backfillTasks.removeAll()
+    }
+
+    // MARK: - Private: Progressive Backfill
+
+    private func startBackfillTask(for source: any DataSource, yearsBack: Int) {
+        let sourceID = source.id
+        backfillTasks[sourceID]?.cancel()
+
+        backfillTasks[sourceID] = Task { [weak self] in
+            guard let self else { return }
+            let calendar = Calendar.current
+            let to = Date()
+            guard let targetFrom = calendar.date(byAdding: .year, value: -yearsBack, to: to) else { return }
+
+            while !Task.isCancelled {
+                let lastKnownDate = await db.getLastDate(sourceID: sourceID)
+                // 还有数据需要拉吗？
+                let yesterday = calendar.date(byAdding: .day, value: -1, to: to) ?? to
+                if let lastKnownDate, lastKnownDate >= yesterday {
+                    break // 已经拉到了昨天，完成
                 }
+
+                let chunkFrom: Date
+                let chunkTo: Date
+                if let lastKnownDate {
+                    // 已有数据，向前补 90 天
+                    chunkTo = lastKnownDate
+                    chunkFrom = max(calendar.date(byAdding: .day, value: -Self.backfillChunkDays, to: lastKnownDate) ?? targetFrom, targetFrom)
+                } else {
+                    // 一条都没有，从 20 年前开始拉
+                    chunkFrom = targetFrom
+                    chunkTo = min(calendar.date(byAdding: .day, value: Self.backfillChunkDays, to: targetFrom) ?? to, to)
+                }
+
+                guard chunkFrom < chunkTo else { break }
+
+                do {
+                    let points = try await source.fetchHistory(from: chunkFrom, to: chunkTo)
+                    if !points.isEmpty {
+                        try await db.upsertDailyPrices(points)
+                    }
+                } catch {
+                    // 静默失败，等下一轮重试
+                }
+
+                // 每块之间休息，不触发 API 限流
+                try? await Task.sleep(for: .seconds(Self.backfillCooldownSeconds))
             }
         }
     }

@@ -9,6 +9,9 @@ struct ContentView: View {
             GoldPriceTheme.canvas.ignoresSafeArea()
 
             HStack(alignment: .top, spacing: 0) {
+                // Left: data source list
+                sourceListPanel
+
                 // Main content (existing)
                 VStack(alignment: .leading, spacing: 20) {
                     header
@@ -21,11 +24,86 @@ struct ContentView: View {
                 }
                 .padding(24)
 
-                // Correlation panel
+                // Right: correlation panel
                 CorrelationPanelView(correlations: viewModel.correlations)
             }
         }
         .frame(minWidth: 1080, minHeight: 580)
+    }
+
+    private var sourceListPanel: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("MARKET DATA")
+                .font(GoldPriceTheme.font(10, weight: .bold))
+                .foregroundStyle(GoldPriceTheme.textSecondary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 16)
+
+            sourceCard(
+                symbol: "Au", name: "黄金", unit: "USD/OZ",
+                price: viewModel.latestPriceText,
+                change: viewModel.sessionMove ?? "--",
+                symbolColor: GoldPriceTheme.accentStrong
+            )
+            sourceCard(
+                symbol: "Ag", name: "白银", unit: "USD/OZ",
+                price: viewModel.otherSourceItems.first(where: { $0.id == "silver" })?.priceText ?? "--",
+                change: "--",
+                symbolColor: GoldPriceTheme.textSecondary
+            )
+            sourceCard(
+                symbol: "DXY", name: "美元指数", unit: "",
+                price: viewModel.otherSourceItems.first(where: { $0.id == "dxy" })?.priceText ?? "--",
+                change: "--",
+                symbolColor: GoldPriceTheme.textPrimary
+            )
+            sourceCard(
+                symbol: "US10Y", name: "10Y美债", unit: "%",
+                price: viewModel.otherSourceItems.first(where: { $0.id == "ust10y" })?.priceText ?? "--",
+                change: "--",
+                symbolColor: GoldPriceTheme.textPrimary
+            )
+
+            Spacer()
+        }
+        .frame(width: 160)
+        .background(GoldPriceTheme.surface)
+    }
+
+    private func sourceCard(symbol: String, name: String, unit: String, price: String, change: String, symbolColor: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(symbol)
+                    .font(GoldPriceTheme.font(11, weight: .black))
+                    .foregroundStyle(symbolColor)
+                    .frame(width: 32, alignment: .leading)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(name)
+                        .font(GoldPriceTheme.font(11, weight: .bold))
+                        .foregroundStyle(GoldPriceTheme.textPrimary)
+                    Text(unit)
+                        .font(GoldPriceTheme.font(9, weight: .medium))
+                        .foregroundStyle(GoldPriceTheme.textSecondary)
+                }
+            }
+
+            Text(price)
+                .font(GoldPriceTheme.font(16, weight: .black))
+                .foregroundStyle(GoldPriceTheme.textPrimary)
+                .monospacedDigit()
+                .minimumScaleFactor(0.7)
+                .lineLimit(1)
+                .padding(.leading, 38)
+
+            Text(change)
+                .font(GoldPriceTheme.font(10, weight: .bold))
+                .foregroundStyle(GoldPriceTheme.textSecondary)
+                .padding(.leading, 38)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(GoldPriceTheme.surfaceSecondary)
     }
 
     private var header: some View {
