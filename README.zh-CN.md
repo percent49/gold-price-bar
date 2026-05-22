@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-`GoldPrice` 是一个原生 SwiftUI macOS 菜单栏应用，用于实时追踪国际金价，支持 `USD / OZ` 和 `RMB / g` 双币种显示，带有桌面小组件和独立详情窗口。
+`GoldPrice` 是一个原生 SwiftUI macOS 菜单栏投资辅助工具，实时追踪国际金价并分析与其他金融指标（白银、原油、美元指数、美债收益率、汇率）的相关性，支持 `USD / OZ` 和 `¥ / 克` 双币种显示，带有桌面小组件和独立详情窗口。
 
 ![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-black)
 ![SwiftUI](https://img.shields.io/badge/built%20with-SwiftUI-gold)
@@ -20,16 +20,18 @@
 
 ## 功能
 
-- 常驻菜单栏，点击即可查看金价
-- 主应用每秒刷新一次
-- 同时显示 `USD / OZ` 和 `RMB / g`
+- 常驻菜单栏，点击即可查看金价（默认人民币/克）
+- 主应用每秒刷新金价，其他数据源按免费 API 频率自动轮询
+- 同时显示 `美元/盎司` 和 `人民币/克`
+- 多数据源：黄金、白银、WTI 原油、美元指数 DXY、10 年期美债收益率、USD/CNY 汇率
+- 相关性分析：皮尔逊相关系数（30天/90天/180天/1年），滚动 Beta，背离率
+- 三栏详情窗口：数据源面板 + 走势图 + 相关性矩阵
+- 渐进式历史数据回填（最近优先，20 年日线，断电续传）
 - 支持手动切换数据源：`自动`、`Kitco`、`Gold API`
-- 支持切换菜单栏显示币种：点击切换按钮在美元和人民币之间切换
 - 价格提醒：设定目标价，穿越时菜单栏闪烁 + 提示音 + 面板横幅通知
 - 提醒历史：可回溯所有触发过的提醒及时间
-- 详情窗口带短期价格走势图
 - 支持 `systemSmall` 和 `systemMedium` 桌面小组件
-- 纯原生 SwiftUI 实现，零第三方依赖
+- 纯原生 SwiftUI 实现，零第三方依赖（SQLite 用系统 libsqlite3）
 
 ## 系统要求
 
@@ -62,13 +64,18 @@
 
 ## 数据来源
 
-应用目前支持以下模式：
+| 数据源 | 实时来源 | 历史来源 | 刷新频率 |
+|--------|---------|---------|---------|
+| 黄金 XAU | Kitco 网页解析 + Gold API 兜底 | Yahoo Finance GC=F | 1 秒 |
+| 白银 XAG | Kitco 网页解析 | Yahoo Finance SI=F | 1 秒 |
+| WTI 原油 | Yahoo Finance CL=F | Yahoo Finance CL=F | 5 分钟 |
+| 美元指数 DXY | FRED API (DTWEXBGS) | FRED API | 5 分钟 |
+| 10Y 美债 | FRED API (DGS10) | FRED API | 5 分钟 |
+| USD/CNY 汇率 | FRED API (DEXCHUS) | FRED API | 5 分钟 |
 
-- `自动`：优先使用 `Kitco`，失败时回退到 `Gold API`
-- `Kitco`：直接从 Kitco 图表页面解析实时数据
-- `Gold API`：使用 `https://api.gold-api.com/price/XAU`
+`人民币/克` 价格从 Kitco 报价源中一同解析出的 `USD/CNY` 汇率计算得出。FRED API 需注册免费 key 存入 `.env`。
 
-`RMB / g` 价格从报价源中一同解析出的 `USD/CNY` 汇率计算得出。如果汇率解析失败，人民币价格将显示为 `--`。
+历史数据采用渐进式回填：优先拉取最近 90 天保证相关性分析立即可用，然后每 60 秒拉取 90 天历史，逐步覆盖 20 年日线。
 
 ## 刷新策略
 
@@ -81,32 +88,35 @@
 
 ```text
 GoldPriceApp/
-  GoldPriceApp.swift
-  MenuBarViews.swift
-  ContentView.swift
-  GoldPriceViewModel.swift
+  GoldPriceApp.swift              # 应用入口，数据源注册
+  MenuBarViews.swift              # 菜单栏弹出面板
+  ContentView.swift               # 三栏详情窗口
+  CorrelationView.swift           # 相关性面板
+  GoldPriceViewModel.swift        # 主视图模型
+  DashboardWindowController.swift # 窗口控制器
 
 GoldPriceWidget/
-  GoldPriceWidget.swift
+  GoldPriceWidget.swift           # 桌面小组件
 
 Shared/
-  GoldPriceService.swift
-  GoldPriceModels.swift
-  Formatting.swift
-  GoldPriceTheme.swift
-
-docs/
-  assets/
-  USAGE.md
-  USAGE.zh-CN.md
-  BUILD_AND_RELEASE.md
-  BUILD_AND_RELEASE.zh-CN.md
-
-scripts/
-  generate_app_icon.swift
-  generate_icon_concepts.swift
-  generate_readme_previews.swift
-  render_menu_header_preview.swift
+  DataSourceProtocol.swift        # 数据源协议 + 通用模型
+  DataSourceManager.swift         # 多数据源调度中心
+  GoldDataSource.swift            # 黄金数据源
+  SilverDataSource.swift          # 白银数据源
+  OilDataSource.swift             # 原油数据源
+  DXYDataSource.swift             # 美元指数数据源
+  UST10YDataSource.swift          # 10Y 美债数据源
+  ExchangeRateDataSource.swift    # 汇率数据源
+  MetalQuoteParser.swift          # Kitco 页面解析器
+  FREDHelpers.swift               # FRED API 工具
+  YahooFinanceHistory.swift       # Yahoo Finance 历史数据
+  DatabaseManager.swift           # SQLite 持久化（actor）
+  CorrelationEngine.swift         # 皮尔逊相关性引擎
+  CorrelationModels.swift         # 相关性数据模型
+  GoldPriceService.swift          # 旧版金价服务（兼容）
+  GoldPriceModels.swift           # 金价数据模型
+  Formatting.swift                # 格式化 + 日志
+  GoldPriceTheme.swift            # 像素主题
 ```
 
 ## 本地构建

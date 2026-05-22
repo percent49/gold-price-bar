@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-`GoldPrice` is a native SwiftUI macOS menu bar app for tracking live international gold prices in `USD / OZ` and `RMB / g`, with a desktop widget and a dedicated detail window.
+`GoldPrice` is a native SwiftUI macOS menu bar investment tool that tracks live gold prices and analyzes correlations with other financial indicators (silver, crude oil, DXY, Treasury yields, exchange rates) in both `USD / OZ` and `¥ / g`, with a desktop widget and a multi-pane dashboard.
 
 ![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-black)
 ![SwiftUI](https://img.shields.io/badge/built%20with-SwiftUI-gold)
@@ -20,16 +20,17 @@
 
 ## Features
 
-- Persistent menu bar entry for quick price lookup
-- Second-level refresh in the main app
-- `USD / OZ` and `RMB / g` primary price display
-- Manual source switching: `Auto`, `Kitco`, `Gold API`
-- Currency toggle: switch menu bar display between USD/OZ and CNY/g
-- Price alert: set target price, get notified with flashing menu bar + sound + banner when crossed
-- Alert history: review all triggered alerts with timestamps
-- Detail window with a short-range price chart
+- Persistent menu bar entry for quick price lookup (defaults to CNY/g)
+- Second-level gold price refresh; other sources poll at free API rates
+- `USD / OZ` and `CNY / g` dual display
+- Multi-source: Gold, Silver, WTI Crude Oil, DXY, 10Y Treasury, USD/CNY FX
+- Correlation analysis: Pearson r (30D/90D/180D/1Y), rolling Beta, divergence ratio
+- 3-pane dashboard: data source panel + chart + correlation matrix
+- Progressive historical backfill (recent-first, 20-year daily data, resumes on restart)
+- Price alert with menu bar flashing + sound + banner notification
+- Alert history with timestamps
 - `systemSmall` and `systemMedium` desktop widgets
-- Native SwiftUI implementation without third-party dependencies
+- Zero third-party dependencies (SQLite via system libsqlite3)
 
 ## Requirements
 
@@ -67,6 +68,8 @@ The app currently supports the following modes:
 - `Auto`: prefers `Kitco`, falls back to `Gold API`
 - `Kitco`: parses live data directly from the Kitco chart page
 - `Gold API`: uses `https://api.gold-api.com/price/XAU`
+
+Additional data sources for correlation analysis: Silver, WTI Crude Oil (Yahoo Finance), DXY, 10Y Treasury, USD/CNY (FRED API). FRED requires a free API key stored in `.env`. Historical data is progressively backfilled (20-year daily, recent-first, resumes on restart).
 
 `RMB / g` is calculated from `USD/CNY` data parsed alongside the quote source. If exchange-rate parsing fails, the RMB price is shown as `--`.
 
