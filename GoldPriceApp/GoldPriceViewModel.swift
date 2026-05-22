@@ -518,7 +518,13 @@ final class GoldPriceViewModel: ObservableObject {
             unit: "年化收益率"
         )
 
-        return [silverItem, dxyItem, ustItem]
+        let oilItem = OtherSourceItem(
+            id: "oil", name: "原油",
+            priceText: quotes["oil"].map { String(format: "%.2f", $0.price) } ?? "--",
+            unit: "USD/桶"
+        )
+
+        return [silverItem, oilItem, dxyItem, ustItem]
     }
 
     private func startMultiSourceSync() {

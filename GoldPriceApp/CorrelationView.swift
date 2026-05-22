@@ -5,8 +5,8 @@ struct CorrelationPanelView: View {
     let pointCounts: [String: Int]
     let isBackfilling: Bool
 
-    private let sourceNames = ["silver": "白银", "dxy": "美元指数", "ust10y": "10Y美债"]
-    private let sourceOrder = ["silver", "dxy", "ust10y"]
+    private let sourceNames = ["silver": "白银", "oil": "原油", "dxy": "美元指数", "ust10y": "10Y美债"]
+    private let sourceOrder = ["silver", "oil", "dxy", "ust10y"]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

@@ -56,6 +56,12 @@ struct ContentView: View {
                 symbolColor: GoldPriceTheme.textSecondary
             )
             sourceCard(
+                symbol: "WTI", name: "原油", unit: "USD/桶",
+                price: viewModel.otherSourceItems.first(where: { $0.id == "oil" })?.priceText ?? "--",
+                change: "--",
+                symbolColor: GoldPriceTheme.textPrimary
+            )
+            sourceCard(
                 symbol: "DXY", name: "美元指数", unit: "指数",
                 price: viewModel.otherSourceItems.first(where: { $0.id == "dxy" })?.priceText ?? "--",
                 change: "--",
