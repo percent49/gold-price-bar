@@ -34,6 +34,16 @@
 		A10000000000000000000225 /* CorrelationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000118 /* CorrelationModels.swift */; };
 		A10000000000000000000226 /* CorrelationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000119 /* CorrelationEngine.swift */; };
 		A10000000000000000000227 /* CorrelationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000119 /* CorrelationEngine.swift */; };
+		A10000000000000000000228 /* GoldDataSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000120 /* GoldDataSource.swift */; };
+		A10000000000000000000229 /* GoldDataSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000120 /* GoldDataSource.swift */; };
+		A10000000000000000000230 /* SilverDataSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000125 /* SilverDataSource.swift */; };
+		A10000000000000000000231 /* SilverDataSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000125 /* SilverDataSource.swift */; };
+		A10000000000000000000232 /* DXYDataSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000126 /* DXYDataSource.swift */; };
+		A10000000000000000000233 /* DXYDataSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000126 /* DXYDataSource.swift */; };
+		A10000000000000000000234 /* UST10YDataSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000127 /* UST10YDataSource.swift */; };
+		A10000000000000000000235 /* UST10YDataSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000127 /* UST10YDataSource.swift */; };
+		A10000000000000000000236 /* FREDHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000128 /* FREDHelpers.swift */; };
+		A10000000000000000000237 /* FREDHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000128 /* FREDHelpers.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -77,7 +87,12 @@
 		A10000000000000000000117 /* DatabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseManager.swift; sourceTree = "<group>"; };
 		A10000000000000000000118 /* CorrelationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CorrelationModels.swift; sourceTree = "<group>"; };
 		A10000000000000000000119 /* CorrelationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CorrelationEngine.swift; sourceTree = "<group>"; };
+		A10000000000000000000120 /* GoldDataSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldDataSource.swift; sourceTree = "<group>"; };
 		A10000000000000000000121 /* GoldPriceWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldPriceWidgetBundle.swift; sourceTree = "<group>"; };
+		A10000000000000000000125 /* SilverDataSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilverDataSource.swift; sourceTree = "<group>"; };
+		A10000000000000000000126 /* DXYDataSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DXYDataSource.swift; sourceTree = "<group>"; };
+		A10000000000000000000127 /* UST10YDataSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UST10YDataSource.swift; sourceTree = "<group>"; };
+		A10000000000000000000128 /* FREDHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FREDHelpers.swift; sourceTree = "<group>"; };
 		A10000000000000000000122 /* GoldPriceWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldPriceWidget.swift; sourceTree = "<group>"; };
 		A10000000000000000000123 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A10000000000000000000124 /* GoldPriceWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GoldPriceWidget.entitlements; sourceTree = "<group>"; };
@@ -159,6 +174,11 @@
 				A10000000000000000000117 /* DatabaseManager.swift */,
 				A10000000000000000000118 /* CorrelationModels.swift */,
 				A10000000000000000000119 /* CorrelationEngine.swift */,
+					A10000000000000000000120 /* GoldDataSource.swift */,
+					A10000000000000000000125 /* SilverDataSource.swift */,
+					A10000000000000000000126 /* DXYDataSource.swift */,
+					A10000000000000000000127 /* UST10YDataSource.swift */,
+					A10000000000000000000128 /* FREDHelpers.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -275,6 +295,11 @@
 				A10000000000000000000222 /* DatabaseManager.swift in Sources */,
 				A10000000000000000000224 /* CorrelationModels.swift in Sources */,
 				A10000000000000000000226 /* CorrelationEngine.swift in Sources */,
+				A10000000000000000000228 /* GoldDataSource.swift in Sources */,
+				A10000000000000000000230 /* SilverDataSource.swift in Sources */,
+				A10000000000000000000232 /* DXYDataSource.swift in Sources */,
+				A10000000000000000000234 /* UST10YDataSource.swift in Sources */,
+				A10000000000000000000236 /* FREDHelpers.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -293,6 +318,11 @@
 				A10000000000000000000223 /* DatabaseManager.swift in Sources */,
 				A10000000000000000000225 /* CorrelationModels.swift in Sources */,
 				A10000000000000000000227 /* CorrelationEngine.swift in Sources */,
+				A10000000000000000000229 /* GoldDataSource.swift in Sources */,
+				A10000000000000000000231 /* SilverDataSource.swift in Sources */,
+				A10000000000000000000233 /* DXYDataSource.swift in Sources */,
+				A10000000000000000000235 /* UST10YDataSource.swift in Sources */,
+				A10000000000000000000237 /* FREDHelpers.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
