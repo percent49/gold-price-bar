@@ -23,6 +23,7 @@ struct MenuBarPanelView: View {
     @ObservedObject var viewModel: GoldPriceViewModel
     let openDashboard: () -> Void
     let quitApp: () -> Void
+    let dismissMenu: () -> Void
 
     @State private var alertInput = ""
     @State private var showHistory = false
@@ -137,13 +138,17 @@ struct MenuBarPanelView: View {
             }
 
             HStack(spacing: 8) {
-                Button("详情", action: openDashboard)
-                    .buttonStyle(PixelButtonStyle(prominent: true))
+                Button("详情") {
+                    openDashboard()
+                    dismissMenu()
+                }
+                .buttonStyle(PixelButtonStyle(prominent: true))
 
                 Button("刷新") {
                     Task {
                         await viewModel.refresh()
                     }
+                    dismissMenu()
                 }
                 .buttonStyle(PixelButtonStyle())
 

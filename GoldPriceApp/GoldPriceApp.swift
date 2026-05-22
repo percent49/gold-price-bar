@@ -18,6 +18,12 @@ struct GoldPriceApp: App {
     @StateObject private var dashboardWindowController = DashboardWindowController()
     private let notificationDelegate = NotificationDelegate()
 
+    private func dismissMenuBar() {
+        for window in NSApp.windows where window.level == .popUpMenu {
+            window.close()
+        }
+    }
+
     init() {
         let center = UNUserNotificationCenter.current()
         center.requestAuthorization(options: [.alert]) { _, _ in }
@@ -48,10 +54,12 @@ struct GoldPriceApp: App {
                 viewModel: viewModel,
                 openDashboard: {
                     dashboardWindowController.show(with: viewModel)
+                    dismissMenuBar()
                 },
                 quitApp: {
                     NSApp.terminate(nil)
-                }
+                },
+                dismissMenu: { dismissMenuBar() }
             )
         } label: {
             MenuBarLabelView(viewModel: viewModel)
