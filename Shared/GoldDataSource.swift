@@ -37,16 +37,7 @@ final class GoldDataSource: DataSource, @unchecked Sendable {
     }
 
     func fetchHistory(from: Date, to: Date) async throws -> [DailyPricePoint] {
-        guard !apiKey.isEmpty else { return [] }
-        let session = URLSession(configuration: .ephemeral)
-        return try await fetchFREDHistory(
-            seriesID: "GOLDPMGBD228NLBR",
-            apiKey: apiKey,
-            sourceID: id,
-            from: from,
-            to: to,
-            session: session
-        )
+        return try await fetchYahooHistory(symbol: "GC=F", sourceID: id, from: from, to: to)
     }
 
     private func fetchFromKitco() async throws -> DataSourceQuote {

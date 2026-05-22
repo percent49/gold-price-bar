@@ -47,6 +47,8 @@
 		A10000000000000000000238 /* DataSourceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000129 /* DataSourceManager.swift */; };
 		A10000000000000000000239 /* DataSourceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000129 /* DataSourceManager.swift */; };
 		A10000000000000000000240 /* CorrelationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000108 /* CorrelationView.swift */; };
+		A10000000000000000000241 /* YahooFinanceHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000012A /* YahooFinanceHistory.swift */; };
+		A10000000000000000000242 /* YahooFinanceHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000012A /* YahooFinanceHistory.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -98,6 +100,7 @@
 		A10000000000000000000127 /* UST10YDataSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UST10YDataSource.swift; sourceTree = "<group>"; };
 		A10000000000000000000128 /* FREDHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FREDHelpers.swift; sourceTree = "<group>"; };
 		A10000000000000000000129 /* DataSourceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataSourceManager.swift; sourceTree = "<group>"; };
+		A1000000000000000000012A /* YahooFinanceHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YahooFinanceHistory.swift; sourceTree = "<group>"; };
 		A10000000000000000000122 /* GoldPriceWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldPriceWidget.swift; sourceTree = "<group>"; };
 		A10000000000000000000123 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A10000000000000000000124 /* GoldPriceWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GoldPriceWidget.entitlements; sourceTree = "<group>"; };
@@ -186,6 +189,7 @@
 					A10000000000000000000127 /* UST10YDataSource.swift */,
 					A10000000000000000000128 /* FREDHelpers.swift */,
 				A10000000000000000000129 /* DataSourceManager.swift */,
+				A1000000000000000000012A /* YahooFinanceHistory.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -308,6 +312,7 @@
 				A10000000000000000000234 /* UST10YDataSource.swift in Sources */,
 				A10000000000000000000236 /* FREDHelpers.swift in Sources */,
 				A10000000000000000000238 /* DataSourceManager.swift in Sources */,
+				A10000000000000000000241 /* YahooFinanceHistory.swift in Sources */,
 				A10000000000000000000240 /* CorrelationView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -333,6 +338,7 @@
 				A10000000000000000000235 /* UST10YDataSource.swift in Sources */,
 				A10000000000000000000237 /* FREDHelpers.swift in Sources */,
 				A10000000000000000000239 /* DataSourceManager.swift in Sources */,
+				A10000000000000000000242 /* YahooFinanceHistory.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
