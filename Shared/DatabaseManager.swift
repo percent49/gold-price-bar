@@ -53,7 +53,6 @@ actor DatabaseManager {
             high      REAL,
             low       REAL,
             close     REAL NOT NULL,
-            volume    REAL,
             PRIMARY KEY (source_id, date)
         );
 
@@ -112,10 +111,15 @@ actor DatabaseManager {
 
     func upsertDailyPrices(_ points: [DailyPricePoint]) throws {
         execute("BEGIN TRANSACTION;")
-        for point in points {
-            try upsertDailyPrice(point)
+        do {
+            for point in points {
+                try upsertDailyPrice(point)
+            }
+            execute("COMMIT;")
+        } catch {
+            execute("ROLLBACK;")
+            throw error
         }
-        execute("COMMIT;")
     }
 
     // MARK: - Read
