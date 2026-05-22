@@ -399,7 +399,7 @@ final class GoldPriceViewModel: ObservableObject {
             let rawValue = userDefaults.string(forKey: currencyPreferenceKey),
             let preference = GoldPriceCurrencyPreference(rawValue: rawValue)
         else {
-            return .usdPerOunce
+            return .cnyPerGram
         }
 
         return preference

@@ -189,21 +189,21 @@ struct MenuBarPanelView: View {
                     .buttonStyle(PixelButtonStyle())
                 }
             } else {
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     Text("提醒价")
                         .font(GoldPriceTheme.font(11, weight: .bold))
                         .foregroundStyle(GoldPriceTheme.textSecondary)
 
-                    TextField(
-                        viewModel.preferredCurrency == .usdPerOunce ? "USD/OZ" : "¥/克",
-                        text: $alertInput
-                    )
-                    .focused($alertFieldFocused)
-                    .textFieldStyle(.plain)
-                    .font(GoldPriceTheme.font(12, weight: .bold))
-                    .foregroundStyle(GoldPriceTheme.textPrimary)
-                    .frame(width: 96)
-                    .onSubmit { commitAlert() }
+                    Text("¥/克")
+                        .font(GoldPriceTheme.font(10, weight: .bold))
+                        .foregroundStyle(GoldPriceTheme.textSecondary.opacity(0.6))
+
+                    TextField("输入价格", text: $alertInput)
+                        .focused($alertFieldFocused)
+                        .textFieldStyle(.plain)
+                        .font(GoldPriceTheme.font(13, weight: .bold))
+                        .foregroundStyle(GoldPriceTheme.textPrimary)
+                        .onSubmit { commitAlert() }
 
                     Button("设定") {
                         commitAlert()
