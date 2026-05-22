@@ -1,6 +1,8 @@
 import Foundation
 import SQLite3
 
+private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+
 actor DatabaseManager {
     static let shared = DatabaseManager()
 
@@ -74,9 +76,9 @@ actor DatabaseManager {
         guard let stmt else { throw DatabaseError.prepareFailed("statement is nil") }
         defer { sqlite3_finalize(stmt) }
 
-        sqlite3_bind_text(stmt, 1, info.id, -1, nil)
-        sqlite3_bind_text(stmt, 2, info.name, -1, nil)
-        sqlite3_bind_text(stmt, 3, info.unit, -1, nil)
+        sqlite3_bind_text(stmt, 1, info.id, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_text(stmt, 2, info.name, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_text(stmt, 3, info.unit, -1, SQLITE_TRANSIENT)
         sqlite3_bind_int(stmt, 4, info.enabled ? 1 : 0)
 
         guard sqlite3_step(stmt) == SQLITE_DONE else {
@@ -99,8 +101,8 @@ actor DatabaseManager {
         defer { sqlite3_finalize(stmt) }
 
         let dateStr = Self.dateFormatter.string(from: point.date)
-        sqlite3_bind_text(stmt, 1, point.sourceID, -1, nil)
-        sqlite3_bind_text(stmt, 2, dateStr, -1, nil)
+        sqlite3_bind_text(stmt, 1, point.sourceID, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_text(stmt, 2, dateStr, -1, SQLITE_TRANSIENT)
         sqlite3_bind_double(stmt, 3, point.open)
         sqlite3_bind_double(stmt, 4, point.high)
         sqlite3_bind_double(stmt, 5, point.low)
@@ -138,10 +140,10 @@ actor DatabaseManager {
         guard let stmt else { return [] }
         defer { sqlite3_finalize(stmt) }
 
-        sqlite3_bind_text(stmt, 1, sourceID, -1, nil)
+        sqlite3_bind_text(stmt, 1, sourceID, -1, SQLITE_TRANSIENT)
         let df = Self.dateFormatter
-        sqlite3_bind_text(stmt, 2, df.string(from: from), -1, nil)
-        sqlite3_bind_text(stmt, 3, df.string(from: to), -1, nil)
+        sqlite3_bind_text(stmt, 2, df.string(from: from), -1, SQLITE_TRANSIENT)
+        sqlite3_bind_text(stmt, 3, df.string(from: to), -1, SQLITE_TRANSIENT)
 
         var result: [DailyPricePoint] = []
         while sqlite3_step(stmt) == SQLITE_ROW {
@@ -163,7 +165,7 @@ actor DatabaseManager {
         guard let stmt else { return nil }
         defer { sqlite3_finalize(stmt) }
 
-        sqlite3_bind_text(stmt, 1, sourceID, -1, nil)
+        sqlite3_bind_text(stmt, 1, sourceID, -1, SQLITE_TRANSIENT)
         guard sqlite3_step(stmt) == SQLITE_ROW else { return nil }
         return rowToDailyPrice(stmt, sourceID: sourceID)
     }
