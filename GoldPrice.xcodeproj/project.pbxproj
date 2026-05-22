@@ -24,6 +24,8 @@
 		A10000000000000000000215 /* Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000113 /* Formatting.swift */; };
 		A10000000000000000000216 /* MenuBarViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000107 /* MenuBarViews.swift */; };
 		A10000000000000000000217 /* GoldPriceTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000114 /* GoldPriceTheme.swift */; };
+		A10000000000000000000218 /* MetalQuoteParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000115 /* MetalQuoteParser.swift */; };
+		A10000000000000000000219 /* MetalQuoteParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000115 /* MetalQuoteParser.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -62,6 +64,7 @@
 		A10000000000000000000112 /* GoldPriceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldPriceService.swift; sourceTree = "<group>"; };
 		A10000000000000000000113 /* Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatting.swift; sourceTree = "<group>"; };
 		A10000000000000000000114 /* GoldPriceTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldPriceTheme.swift; sourceTree = "<group>"; };
+		A10000000000000000000115 /* MetalQuoteParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalQuoteParser.swift; sourceTree = "<group>"; };
 		A10000000000000000000121 /* GoldPriceWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldPriceWidgetBundle.swift; sourceTree = "<group>"; };
 		A10000000000000000000122 /* GoldPriceWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldPriceWidget.swift; sourceTree = "<group>"; };
 		A10000000000000000000123 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -139,6 +142,7 @@
 				A10000000000000000000112 /* GoldPriceService.swift */,
 				A10000000000000000000113 /* Formatting.swift */,
 				A10000000000000000000114 /* GoldPriceTheme.swift */,
+				A10000000000000000000115 /* MetalQuoteParser.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -250,6 +254,7 @@
 				A10000000000000000000209 /* GoldPriceTheme.swift in Sources */,
 				A10000000000000000000210 /* DashboardWindowController.swift in Sources */,
 				A10000000000000000000216 /* MenuBarViews.swift in Sources */,
+				A10000000000000000000218 /* MetalQuoteParser.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -263,6 +268,7 @@
 				A10000000000000000000214 /* GoldPriceService.swift in Sources */,
 				A10000000000000000000215 /* Formatting.swift in Sources */,
 				A10000000000000000000217 /* GoldPriceTheme.swift in Sources */,
+				A10000000000000000000219 /* MetalQuoteParser.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
