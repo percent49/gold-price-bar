@@ -8,15 +8,15 @@ actor CorrelationEngine {
         self.db = db
     }
 
-    func compute(baseSourceID: String, targetSourceID: String, window: TimeWindow) -> CorrelationResult? {
+    func compute(baseSourceID: String, targetSourceID: String, window: TimeWindow) async -> CorrelationResult? {
         let calendar = Calendar.current
         let to = Date()
         guard let from = calendar.date(byAdding: .day, value: -window.days, to: to) else {
             return nil
         }
 
-        let basePrices = db.getPrices(sourceID: baseSourceID, from: from, to: to)
-        let targetPrices = db.getPrices(sourceID: targetSourceID, from: from, to: to)
+        let basePrices = await db.getPrices(sourceID: baseSourceID, from: from, to: to)
+        let targetPrices = await db.getPrices(sourceID: targetSourceID, from: from, to: to)
 
         let targetByDate = Dictionary(grouping: targetPrices) { Calendar.current.startOfDay(for: $0.date) }
             .compactMapValues { $0.first?.close }
@@ -53,21 +53,23 @@ actor CorrelationEngine {
             computedAt: Date()
         )
 
-        cache["\(baseSourceID)_\(targetSourceID)_\(window.rawValue)"] = result
+        cache["\(baseSourceID)_\(targetSourceID)_\(window.rawValue)"] = [window: result]
         return result
     }
 
-    func computeAll(baseSourceID: String, targetSourceIDs: [String]) -> [SourceCorrelation] {
-        return targetSourceIDs.compactMap { targetID in
+    func computeAll(baseSourceID: String, targetSourceIDs: [String]) async -> [SourceCorrelation] {
+        var results: [SourceCorrelation] = []
+        for targetID in targetSourceIDs {
             var correlations: [TimeWindow: CorrelationResult] = [:]
             for window in TimeWindow.allCases {
-                if let result = compute(baseSourceID: baseSourceID, targetSourceID: targetID, window: window) {
+                if let result = await compute(baseSourceID: baseSourceID, targetSourceID: targetID, window: window) {
                     correlations[window] = result
                 }
             }
-            guard !correlations.isEmpty else { return nil }
-            return SourceCorrelation(sourceID: targetID, sourceName: targetID, correlations: correlations)
+            guard !correlations.isEmpty else { continue }
+            results.append(SourceCorrelation(sourceID: targetID, sourceName: targetID, correlations: correlations))
         }
+        return results
     }
 
     func invalidateCache() {

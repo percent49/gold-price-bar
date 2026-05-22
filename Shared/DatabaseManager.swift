@@ -71,6 +71,7 @@ actor DatabaseManager {
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
             throw DatabaseError.prepareFailed(errorMessage)
         }
+        guard let stmt else { throw DatabaseError.prepareFailed("statement is nil") }
         defer { sqlite3_finalize(stmt) }
 
         sqlite3_bind_text(stmt, 1, info.id, -1, nil)
@@ -94,6 +95,7 @@ actor DatabaseManager {
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
             throw DatabaseError.prepareFailed(errorMessage)
         }
+        guard let stmt else { throw DatabaseError.prepareFailed("statement is nil") }
         defer { sqlite3_finalize(stmt) }
 
         let dateStr = Self.dateFormatter.string(from: point.date)
@@ -133,6 +135,7 @@ actor DatabaseManager {
         """
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+        guard let stmt else { return [] }
         defer { sqlite3_finalize(stmt) }
 
         sqlite3_bind_text(stmt, 1, sourceID, -1, nil)
@@ -157,6 +160,7 @@ actor DatabaseManager {
         """
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return nil }
+        guard let stmt else { return nil }
         defer { sqlite3_finalize(stmt) }
 
         sqlite3_bind_text(stmt, 1, sourceID, -1, nil)
@@ -172,6 +176,7 @@ actor DatabaseManager {
         let sql = "SELECT id, name, unit, enabled FROM data_sources;"
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+        guard let stmt else { return [] }
         defer { sqlite3_finalize(stmt) }
 
         var result: [DataSourceInfo] = []
