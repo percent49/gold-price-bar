@@ -332,6 +332,7 @@
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
+				OTHER_LDFLAGS = "-lsqlite3";
 			};
 			name = Debug;
 		};
@@ -363,6 +364,7 @@
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
+				OTHER_LDFLAGS = "-lsqlite3";
 			};
 			name = Release;
 		};
