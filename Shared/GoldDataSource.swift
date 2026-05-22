@@ -8,9 +8,11 @@ final class GoldDataSource: DataSource, @unchecked Sendable {
     var enabled = true
 
     private let parser: MetalQuoteParser
+    private let apiKey: String
     private static let goldAPIEndpoint = URL(string: "https://api.gold-api.com/price/XAU")!
 
-    init(session: URLSession = {
+    init(apiKey: String = ProcessInfo.processInfo.environment["FRED_API_KEY"] ?? "",
+         session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         config.timeoutIntervalForRequest = 8
@@ -19,6 +21,7 @@ final class GoldDataSource: DataSource, @unchecked Sendable {
         config.httpShouldSetCookies = false
         return URLSession(configuration: config)
     }()) {
+        self.apiKey = apiKey
         self.parser = MetalQuoteParser(
             session: session,
             pageURL: URL(string: "https://www.kitco.com/charts/gold?sitetype=fullsite")!
@@ -34,8 +37,16 @@ final class GoldDataSource: DataSource, @unchecked Sendable {
     }
 
     func fetchHistory(from: Date, to: Date) async throws -> [DailyPricePoint] {
-        // Phase 5 implementation
-        return []
+        guard !apiKey.isEmpty else { return [] }
+        let session = URLSession(configuration: .ephemeral)
+        return try await fetchFREDHistory(
+            seriesID: "GOLDPMGBD228NLBR",
+            apiKey: apiKey,
+            sourceID: id,
+            from: from,
+            to: to,
+            session: session
+        )
     }
 
     private func fetchFromKitco() async throws -> DataSourceQuote {
