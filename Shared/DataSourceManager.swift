@@ -65,33 +65,26 @@ actor DataSourceManager {
             let calendar = Calendar.current
             let to = Date()
             guard let targetFrom = calendar.date(byAdding: .year, value: -yearsBack, to: to) else { return }
+            let yesterday = calendar.date(byAdding: .day, value: -1, to: to) ?? to
 
-            while !Task.isCancelled {
-                let lastKnownDate = await db.getLastDate(sourceID: sourceID)
-                // 还有数据需要拉吗？
-                let yesterday = calendar.date(byAdding: .day, value: -1, to: to) ?? to
-                if let lastKnownDate, lastKnownDate >= yesterday {
-                    break // 已经拉到了昨天，完成
-                }
+            // 用独立游标跟踪回填进度，不受实时数据干扰
+            let cursorKey = "backfill_cursor_\(sourceID)"
+            let defaults = UserDefaults.standard
 
-                let chunkFrom: Date
-                let chunkTo: Date
-                if let lastKnownDate {
-                    // 已有数据，从最新的日期继续向现在拉
-                    chunkFrom = lastKnownDate
-                    let nextChunk = calendar.date(byAdding: .day, value: Self.backfillChunkDays, to: lastKnownDate) ?? to
-                    chunkTo = min(nextChunk, yesterday)
-                } else {
-                    // 一条都没有，从 20 年前开始拉
-                    chunkFrom = targetFrom
-                    let firstChunk = calendar.date(byAdding: .day, value: Self.backfillChunkDays, to: targetFrom) ?? to
-                    chunkTo = min(firstChunk, yesterday)
-                }
+            var cursor: Date
+            if let saved = defaults.object(forKey: cursorKey) as? Date {
+                cursor = saved
+            } else {
+                // 首次：从 20 年前开始
+                cursor = targetFrom
+            }
 
-                guard chunkFrom < chunkTo else { break }
+            while !Task.isCancelled && cursor < yesterday {
+                let chunkTo = min(calendar.date(byAdding: .day, value: Self.backfillChunkDays, to: cursor) ?? yesterday, yesterday)
+                guard cursor < chunkTo else { break }
 
                 do {
-                    let points = try await source.fetchHistory(from: chunkFrom, to: chunkTo)
+                    let points = try await source.fetchHistory(from: cursor, to: chunkTo)
                     if !points.isEmpty {
                         try await db.upsertDailyPrices(points)
                     }
@@ -99,7 +92,8 @@ actor DataSourceManager {
                     // 静默失败，等下一轮重试
                 }
 
-                // 每块之间休息，不触发 API 限流
+                cursor = chunkTo
+                defaults.set(cursor, forKey: cursorKey)
                 try? await Task.sleep(for: .seconds(Self.backfillCooldownSeconds))
             }
         }

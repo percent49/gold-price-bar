@@ -174,6 +174,20 @@ actor DatabaseManager {
         getLatestPrice(sourceID: sourceID)?.date
     }
 
+    func getEarliestDate(sourceID: String) -> Date? {
+        let sql = "SELECT date FROM daily_prices WHERE source_id = ? ORDER BY date ASC LIMIT 1;"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return nil }
+        guard let stmt else { return nil }
+        defer { sqlite3_finalize(stmt) }
+
+        sqlite3_bind_text(stmt, 1, sourceID, -1, SQLITE_TRANSIENT)
+        guard sqlite3_step(stmt) == SQLITE_ROW else { return nil }
+        guard let dateStr = sqlite3_column_text(stmt, 0).map({ String(cString: $0) }),
+              let date = Self.dateFormatter.date(from: dateStr) else { return nil }
+        return date
+    }
+
     func getAllSources() -> [DataSourceInfo] {
         let sql = "SELECT id, name, unit, enabled FROM data_sources;"
         var stmt: OpaquePointer?
