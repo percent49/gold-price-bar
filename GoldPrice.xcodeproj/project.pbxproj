@@ -209,6 +209,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = A10000000000000000000602 /* Build configuration list for PBXNativeTarget "GoldPrice" */;
 			buildPhases = (
+				A10000000000000000000305 /* Remove Old App */,
 				A10000000000000000000301 /* Sources */,
 				A10000000000000000000302 /* Frameworks */,
 				A10000000000000000000303 /* Resources */,
@@ -294,6 +295,23 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		A10000000000000000000305 /* Remove Old App */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Remove Old App";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ -d \"/Applications/GoldPrice.app\" ]; then\n  echo \"Removing old GoldPrice.app from /Applications...\"\n  rm -rf \"/Applications/GoldPrice.app\"\n  echo \"Done.\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A10000000000000000000301 /* Sources */ = {
@@ -414,7 +432,7 @@
 					"@executable_path/../PlugIns",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.simondominic.GoldPrice;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
@@ -446,7 +464,7 @@
 					"@executable_path/../PlugIns",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.simondominic.GoldPrice;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
@@ -474,7 +492,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.simondominic.GoldPrice.GoldPriceWidgetExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
@@ -502,7 +520,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.simondominic.GoldPrice.GoldPriceWidgetExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;

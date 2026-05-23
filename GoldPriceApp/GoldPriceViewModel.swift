@@ -187,6 +187,18 @@ final class GoldPriceViewModel: ObservableObject {
         }
     }
 
+    /// 提醒价转换为 USD/oz（图表统一用 pricePerOunce）
+    var alertPriceInUSD: Double? {
+        guard let alertPrice else { return nil }
+        switch alertCurrency {
+        case .usdPerOunce:
+            return alertPrice
+        case .cnyPerGram:
+            guard let rate = quote?.usdToCNYRate, rate > 0 else { return nil }
+            return (alertPrice * GoldPriceFormatting.gramsPerTroyOunce) / rate
+        }
+    }
+
     private var previousCNYForAlert: Double?
 
     private func checkAlert(from previousQuote: GoldQuote?, to newQuote: GoldQuote) {

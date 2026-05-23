@@ -236,6 +236,12 @@ struct ContentView: View {
                         )
                         .foregroundStyle(GoldPriceTheme.accentStrong)
                         .lineStyle(.init(lineWidth: 2.4, lineCap: .square, lineJoin: .miter))
+
+                        if let alertUSD = viewModel.alertPriceInUSD {
+                            RuleMark(y: .value("提醒价", alertUSD))
+                                .foregroundStyle(GoldPriceTheme.negative)
+                                .lineStyle(.init(lineWidth: 1.5, dash: [5, 4]))
+                        }
                     }
                     .chartXAxis(.hidden)
                     .chartYAxis(.hidden)
@@ -311,8 +317,15 @@ struct ContentView: View {
             return nil
         }
 
-        let spread = max(maxValue - minValue, maxValue * 0.0008)
+        var lower = minValue
+        var upper = maxValue
+        if let alertUSD = viewModel.alertPriceInUSD {
+            lower = min(lower, alertUSD)
+            upper = max(upper, alertUSD)
+        }
+
+        let spread = max(upper - lower, upper * 0.0008)
         let padding = spread * 0.22
-        return (minValue - padding)...(maxValue + padding)
+        return (lower - padding)...(upper + padding)
     }
 }

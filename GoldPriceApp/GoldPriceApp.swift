@@ -2,6 +2,8 @@ import AppKit
 import SwiftUI
 import UserNotifications
 
+// MARK: - Notification Delegate
+
 final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
@@ -12,24 +14,19 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     }
 }
 
+// MARK: - App
+
 @main
 struct GoldPriceApp: App {
     @StateObject private var viewModel = GoldPriceViewModel(autoStart: true)
     @StateObject private var dashboardWindowController = DashboardWindowController()
     private let notificationDelegate = NotificationDelegate()
 
-    private func dismissMenuBar() {
-        for window in NSApp.windows where window.level == .popUpMenu {
-            window.close()
-        }
-    }
-
     init() {
         let center = UNUserNotificationCenter.current()
         center.requestAuthorization(options: [.alert]) { _, _ in }
         center.delegate = notificationDelegate
 
-        // Initialize multi-source data
         Task {
             let fredKey = ProcessInfo.processInfo.environment["FRED_API_KEY"] ?? ""
             do {
@@ -47,6 +44,12 @@ struct GoldPriceApp: App {
             } catch {
                 print("DataSource init error: \(error.localizedDescription)")
             }
+        }
+    }
+
+    private func dismissMenuBar() {
+        for window in NSApp.windows where window.level == .popUpMenu {
+            window.close()
         }
     }
 

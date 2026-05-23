@@ -13,6 +13,9 @@ struct MenuBarLabelView: View {
 
     private var alertText: String {
         guard viewModel.alertTriggered else {
+            if viewModel.alertPrice != nil {
+                return "🔔\(viewModel.menuBarTitle)"
+            }
             return viewModel.menuBarTitle
         }
         return viewModel.alertFlashOn ? viewModel.menuBarTitle : "! 金价到了 !"
@@ -52,16 +55,20 @@ struct MenuBarPanelView: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 1) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text("国际金价")
                     .font(GoldPriceTheme.font(15, weight: .black))
                     .foregroundStyle(GoldPriceTheme.textPrimary)
 
-                Text("\(viewModel.sourceName) / LIVE PANEL")
+                Text(appVersion)
                     .font(GoldPriceTheme.font(10, weight: .bold))
                     .foregroundStyle(GoldPriceTheme.textSecondary)
             }
             .padding(.top, 4)
+
+            Text("\(viewModel.sourceName) / LIVE PANEL")
+                .font(GoldPriceTheme.font(10, weight: .bold))
+                .foregroundStyle(GoldPriceTheme.textSecondary)
 
             HStack(spacing: 8) {
                 ForEach(GoldPriceSourcePreference.allCases) { source in
@@ -119,6 +126,12 @@ struct MenuBarPanelView: View {
                         )
                         .foregroundStyle(GoldPriceTheme.accentStrong)
                         .lineStyle(.init(lineWidth: 2, lineCap: .square, lineJoin: .miter))
+
+                        if let alertUSD = viewModel.alertPriceInUSD {
+                            RuleMark(y: .value("提醒价", alertUSD))
+                                .foregroundStyle(GoldPriceTheme.negative)
+                                .lineStyle(.init(lineWidth: 1.2, dash: [4, 3]))
+                        }
                     }
                     .chartXAxis(.hidden)
                     .chartYAxis(.hidden)
@@ -296,14 +309,26 @@ struct MenuBarPanelView: View {
         .background(GoldPriceTheme.canvas)
     }
 
+    private var appVersion: String {
+        let marketing = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
+        return "v\(marketing)"
+    }
+
     private var chartDomain: ClosedRange<Double>? {
         let values = viewModel.compactHistory.map(\.pricePerOunce)
         guard let minValue = values.min(), let maxValue = values.max() else {
             return nil
         }
 
-        let spread = max(maxValue - minValue, maxValue * 0.0006)
+        var lower = minValue
+        var upper = maxValue
+        if let alertUSD = viewModel.alertPriceInUSD {
+            lower = min(lower, alertUSD)
+            upper = max(upper, alertUSD)
+        }
+
+        let spread = max(upper - lower, upper * 0.0006)
         let padding = spread * 0.22
-        return (minValue - padding)...(maxValue + padding)
+        return (lower - padding)...(upper + padding)
     }
 }
