@@ -28,7 +28,10 @@ struct GoldPriceApp: App {
         center.delegate = notificationDelegate
 
         Task {
-            let fredKey = ProcessInfo.processInfo.environment["FRED_API_KEY"] ?? ""
+            // 环境变量优先（命令行启动），GUI 启动时 fallback 到 UserDefaults
+            let fredKey = ProcessInfo.processInfo.environment["FRED_API_KEY"]
+                ?? UserDefaults.standard.string(forKey: "FRED_API_KEY")
+                ?? ""
             do {
                 try await DataSourceManager.shared.db.open()
                 try await DataSourceManager.shared.register(GoldDataSource(apiKey: fredKey))
@@ -40,9 +43,9 @@ struct GoldPriceApp: App {
                     try await DataSourceManager.shared.register(UST10YDataSource(apiKey: fredKey))
                 }
                 await DataSourceManager.shared.startAll()
-                await DataSourceManager.shared.startProgressiveBackfill(yearsBack: 20)
+                await DataSourceManager.shared.startProgressiveBackfill(yearsBack: 50)
             } catch {
-                print("DataSource init error: \(error.localizedDescription)")
+                GoldPriceLog.warn("DataSource init error: \(error.localizedDescription)")
             }
         }
     }

@@ -206,6 +206,34 @@ actor DatabaseManager {
         return result
     }
 
+    struct SourceStats {
+        let sourceID: String
+        let count: Int
+        let earliest: Date?
+        let latest: Date?
+    }
+
+    func getSourceStats(sourceIDs: [String]) -> [SourceStats] {
+        sourceIDs.compactMap { sourceID in
+            let countSQL = "SELECT COUNT(*), MIN(date), MAX(date) FROM daily_prices WHERE source_id = ?;"
+            var stmt: OpaquePointer?
+            guard sqlite3_prepare_v2(db, countSQL, -1, &stmt, nil) == SQLITE_OK else { return nil }
+            guard let stmt else { return nil }
+            defer { sqlite3_finalize(stmt) }
+
+            sqlite3_bind_text(stmt, 1, sourceID, -1, SQLITE_TRANSIENT)
+            guard sqlite3_step(stmt) == SQLITE_ROW else {
+                return SourceStats(sourceID: sourceID, count: 0, earliest: nil, latest: nil)
+            }
+            let count = Int(sqlite3_column_int(stmt, 0))
+            let earliest = sqlite3_column_text(stmt, 1).map { String(cString: $0) }
+                .flatMap { Self.dateFormatter.date(from: $0) }
+            let latest = sqlite3_column_text(stmt, 2).map { String(cString: $0) }
+                .flatMap { Self.dateFormatter.date(from: $0) }
+            return SourceStats(sourceID: sourceID, count: count, earliest: earliest, latest: latest)
+        }
+    }
+
     func countAllPoints() -> [String: Int] {
         let sql = "SELECT source_id, COUNT(*) FROM daily_prices GROUP BY source_id;"
         var stmt: OpaquePointer?

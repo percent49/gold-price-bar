@@ -1,22 +1,26 @@
 import Foundation
 
 enum GoldPriceLog {
-    private static let logURL: URL = {
+    private static let logDir: URL = {
         let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
             .appendingPathComponent("com.goldprice.app")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("goldprice.log")
+        return dir
     }()
 
-    private static let formatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "MM-dd HH:mm:ss.SSS"
-        return f
-    }()
+    private static let logURL: URL = logDir.appendingPathComponent("goldprice.log")
+    private static let maxLogSize: Int64 = 5 * 1_024 * 1_024  // 5 MB
+    private static let maxRotations = 3                       // 保留 3 个历史文件
 
     private static let startTime = Date()
+    private static let queue = DispatchQueue(label: "com.goldprice.log")
+
+    /// 低频心跳：Tick / Refresh 等高频事件至少间隔 60s 才写一次
+    private static let heartbeatInterval: TimeInterval = 60
+    private static var lastHeartbeat: [String: Date] = [:]
 
     private static var logFile: FileHandle? = {
+        rotateIfNeeded()
         let url = logURL
         if !FileManager.default.fileExists(atPath: url.path) {
             FileManager.default.createFile(atPath: url.path, contents: nil)
@@ -26,18 +30,69 @@ enum GoldPriceLog {
         return h
     }()
 
-    private static let queue = DispatchQueue(label: "com.goldprice.log")
-
     static var logPath: String { logURL.path }
+
+    // MARK: - Rotation
+
+    private static func rotateIfNeeded() {
+        let url = logURL
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+              let size = attrs[.size] as? Int64,
+              size >= maxLogSize else { return }
+
+        // 关闭旧句柄
+        logFile?.closeFile()
+        logFile = nil
+
+        // 轮转: .2 → .3, .1 → .2, current → .1
+        let ext = ".log"
+        for i in stride(from: maxRotations - 1, through: 1, by: -1) {
+            let oldURL = logDir.appendingPathComponent("goldprice.\(i)\(ext)")
+            let newURL = logDir.appendingPathComponent("goldprice.\(i + 1)\(ext)")
+            try? FileManager.default.removeItem(at: newURL)
+            try? FileManager.default.moveItem(at: oldURL, to: newURL)
+        }
+        let backupURL = logDir.appendingPathComponent("goldprice.1\(ext)")
+        try? FileManager.default.removeItem(at: backupURL)
+        try? FileManager.default.moveItem(at: url, to: backupURL)
+
+        GoldPriceLog.logFile = nil  // 下次 write 会重新 open
+    }
+
+    private static func ensureLogFile() {
+        if logFile == nil {
+            let url = logURL
+            if !FileManager.default.fileExists(atPath: url.path) {
+                FileManager.default.createFile(atPath: url.path, contents: nil)
+            }
+            let h = try? FileHandle(forWritingTo: url)
+            h?.seekToEndOfFile()
+            logFile = h
+        }
+    }
+
+    // MARK: - Write
 
     private static func write(_ level: String, _ msg: String) {
         let elapsed = String(format: "%.1f", Date().timeIntervalSince(startTime))
         let line = "[+\(elapsed)s] [\(level)] \(msg)\n"
         queue.async {
+            ensureLogFile()
             if let data = line.data(using: .utf8) {
                 logFile?.write(data)
             }
         }
+    }
+
+    /// 低频写：同 key 在 heartbeatInterval 秒内只写第一次，之后跳过
+    private static func throttled(_ key: String, _ level: String, _ msg: String) {
+        let now = Date()
+        if let last = lastHeartbeat[key], now.timeIntervalSince(last) < heartbeatInterval {
+            return
+        }
+        lastHeartbeat[key] = now
+        write(level, msg)
     }
 
     // MARK: - Public API
@@ -47,12 +102,12 @@ enum GoldPriceLog {
     }
 
     static func refreshStart(source: String) {
-        write("DEBUG", "Refresh start | source=\(source)")
+        throttled("refreshStart", "DEBUG", "刷新中 | source=\(source)")
     }
 
     static func refreshSuccess(source: String, price: Double, cny: Double?) {
         let cnyStr = cny.map { String(format: "%.2f", $0) } ?? "nil"
-        write("DEBUG", "Refresh OK | source=\(source) usd=\(String(format: "%.2f", price)) cny/g=\(cnyStr)")
+        throttled("refreshSuccess", "DEBUG", "✅ 价格 | \(source) usd=\(String(format: "%.2f", price)) cny/g=\(cnyStr)")
     }
 
     static func refreshError(_ error: Error, source: String) {
@@ -72,13 +127,12 @@ enum GoldPriceLog {
     }
 
     static func alertCheck(previous: Double?, current: Double, target: Double, currency: String) {
-        guard let prev = previous else {
-            write("DEBUG", "Alert check | NO BASELINE, recording curr=\(String(format: "%.2f", current))")
-            return
-        }
+        // 只在穿越时写，日常 tick 不写
+        guard let prev = previous else { return }
         let crossed = (prev - target) * (current - target) <= 0
-        let diff = abs(current - target)
-        write("DEBUG", "Alert check | prev=\(String(format: "%.2f", prev)) curr=\(String(format: "%.2f", current)) target=\(String(format: "%.2f", target)) crossed=\(crossed) diff=\(String(format: "%.4f", diff))")
+            && abs(current - target) < max(target * 0.02, 1.0)
+        guard crossed else { return }
+        write("DEBUG", "⚠️ 提醒价位接近 | price=\(String(format: "%.2f", current)) target=\(String(format: "%.2f", target))")
     }
 
     static func alertTriggered(price: Double, currency: String) {
@@ -100,7 +154,7 @@ enum GoldPriceLog {
     static func currentPriceInfo(usd: Double, cnyPerGram: Double?, source: String, alert: Double?) {
         let cnyStr = cnyPerGram.map { String(format: "%.3f", $0) } ?? "nil"
         let alertStr = alert.map { String(format: "%.2f", $0) } ?? "none"
-        write("DEBUG", "Tick | usd=\(String(format: "%.2f", usd)) cny/g=\(cnyStr) source=\(source) alert=\(alertStr)")
+        throttled("tick", "DEBUG", "💰 \(source) $\(String(format: "%.2f", usd)) ¥\(cnyStr)/g alert=\(alertStr)")
     }
 
     static func debug(_ msg: String) {
@@ -109,6 +163,11 @@ enum GoldPriceLog {
 
     static func warn(_ msg: String) {
         write("WARN", msg)
+    }
+
+    /// 手动触发轮转（测试用）
+    static func forceRotate() {
+        rotateIfNeeded()
     }
 }
 

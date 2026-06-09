@@ -12,9 +12,13 @@ actor DataSourceManager {
     private var _quotes: [String: DataSourceQuote] = [:]
     var quotes: [String: DataSourceQuote] { _quotes }
 
-    // 渐进式回填：每天拉 90 天数据，间隔 5 分钟，不触发限流
+    // 渐进式回填：每天拉 90 天数据，间隔 1 分钟，不触发限流
     private nonisolated static let backfillChunkDays = 90
     private nonisolated static let backfillCooldownSeconds: TimeInterval = 60
+
+    // 实时拉取：连续失败上限和冷却期
+    private nonisolated static let maxPollRetries = 3
+    private nonisolated static let pollCooldownSeconds: TimeInterval = 300  // 5 分钟
 
     init(db: DatabaseManager = .shared) {
         self.db = db
@@ -29,8 +33,16 @@ actor DataSourceManager {
     }
 
     func startAll() {
+        // 错开启动：同 API 数据源之间加 5s 间隔，避免并发触发 FRED 限流
+        var delay: TimeInterval = 0
         for source in sources where source.enabled {
-            startPolling(source)
+            let src = source
+            let d = delay
+            Task {
+                try? await Task.sleep(for: .seconds(d))
+                startPolling(src)
+            }
+            delay += (src.id == "usdcny" || src.id == "dxy" || src.id == "ust10y") ? 5 : 1
         }
     }
 
@@ -42,8 +54,16 @@ actor DataSourceManager {
     }
 
     func startProgressiveBackfill(yearsBack: Int = 20) {
+        // 启动后快速检查缺口，每个源间隔 8s 避免并发限流
+        var delay: TimeInterval = 5
         for source in sources where source.enabled {
-            startBackfillTask(for: source, yearsBack: yearsBack)
+            let src = source
+            let d = delay
+            Task {
+                try? await Task.sleep(for: .seconds(d))
+                startBackfillTask(for: src, yearsBack: yearsBack)
+            }
+            delay += 8
         }
     }
 
@@ -63,37 +83,57 @@ actor DataSourceManager {
         backfillTasks[sourceID] = Task { [weak self] in
             guard let self else { return }
             let calendar = Calendar.current
-            let to = Date()
-            guard let targetFrom = calendar.date(byAdding: .year, value: -yearsBack, to: to) else { return }
-            let yesterday = calendar.date(byAdding: .day, value: -1, to: to) ?? to
-
-            // 用独立游标跟踪回填进度，不受实时数据干扰
-            let cursorKey = "backfill_cursor_\(sourceID)"
+            let now = Date()
+            let endDate = calendar.startOfDay(for: calendar.date(byAdding: .day, value: 1, to: now) ?? now)
             let defaults = UserDefaults.standard
+            let cursorKey = "backfill_cursor_\(sourceID)"
 
-            var cursor: Date
-            if let saved = defaults.object(forKey: cursorKey) as? Date {
-                cursor = saved
-            } else {
-                // 首次：从昨天往前 90 天开始（优先拉最近数据）
-                cursor = max(calendar.date(byAdding: .day, value: -Self.backfillChunkDays, to: yesterday) ?? targetFrom, targetFrom)
-            }
-
-            while !Task.isCancelled && cursor < yesterday {
-                let chunkTo = min(calendar.date(byAdding: .day, value: Self.backfillChunkDays, to: cursor) ?? yesterday, yesterday)
-                guard cursor < chunkTo else { break }
-
+            // ── 阶段 1：补齐近期缺口（每次启动必做） ──
+            // 从最新数据日期到昨天，如果有缺口就拉
+            let oneDay: TimeInterval = 86400
+            while !Task.isCancelled {
+                let lastDate = await db.getLastDate(sourceID: sourceID) ?? endDate
+                // 昨天之前如果缺了超过 1 天，补齐
+                let yesterday = calendar.startOfDay(for: calendar.date(byAdding: .day, value: -1, to: now) ?? now)
+                guard lastDate < yesterday.addingTimeInterval(-oneDay) else { break }
+                let gapFrom = max(lastDate, yesterday.addingTimeInterval(-oneDay * Double(Self.backfillChunkDays)))
                 do {
-                    let points = try await source.fetchHistory(from: cursor, to: chunkTo)
+                    let points = try await source.fetchHistory(from: gapFrom, to: yesterday)
                     if !points.isEmpty {
                         try await db.upsertDailyPrices(points)
+                        GoldPriceLog.debug("缺口补齐 [\(sourceID)]: \(points.count)条 \(gapFrom) → \(yesterday)")
                     }
                 } catch {
-                    // 静默失败，等下一轮重试
+                    GoldPriceLog.warn("缺口补齐失败 [\(sourceID)]: \(error.localizedDescription)")
+                }
+                try? await Task.sleep(for: .seconds(30))
+            }
+
+            // ── 阶段 2：历史回填（从游标继续往深处拉） ──
+            guard let targetFrom = calendar.date(byAdding: .year, value: -yearsBack, to: now) else { return }
+            var cursor: Date
+            if let saved = defaults.object(forKey: cursorKey) as? Date, saved > targetFrom {
+                cursor = saved
+            } else {
+                cursor = endDate
+            }
+
+            while !Task.isCancelled && cursor > targetFrom {
+                let chunkFrom = max(calendar.date(byAdding: .day, value: -Self.backfillChunkDays, to: cursor) ?? targetFrom, targetFrom)
+                guard chunkFrom < cursor else { break }
+
+                do {
+                    let points = try await source.fetchHistory(from: chunkFrom, to: cursor)
+                    if !points.isEmpty {
+                        try await db.upsertDailyPrices(points)
+                        GoldPriceLog.debug("回填成功 [\(sourceID)]: \(points.count)条 \(chunkFrom) → \(cursor)")
+                    }
+                    cursor = chunkFrom
+                    defaults.set(cursor, forKey: cursorKey)
+                } catch {
+                    GoldPriceLog.warn("回填失败 [\(sourceID)] \(cursor): \(error.localizedDescription)")
                 }
 
-                cursor = chunkTo
-                defaults.set(cursor, forKey: cursorKey)
                 try? await Task.sleep(for: .seconds(Self.backfillCooldownSeconds))
             }
         }
@@ -101,9 +141,14 @@ actor DataSourceManager {
 
     var correlations: [SourceCorrelation] {
         get async {
-            let targetIDs = sources.filter { $0.id != "gold" && $0.enabled }.map { $0.id }
-            return await engine.computeAll(baseSourceID: "gold", targetSourceIDs: targetIDs)
+            return await computeCorrelations()
         }
+    }
+
+    func computeCorrelations(from: Date? = nil, to: Date? = nil) async -> [SourceCorrelation] {
+        await engine.invalidateCache()
+        let targetIDs = sources.filter { $0.id != "gold" && $0.enabled }.map { $0.id }
+        return await engine.computeAll(baseSourceID: "gold", targetSourceIDs: targetIDs, from: from, to: to)
     }
 
     func refreshCorrelations() async {
@@ -132,19 +177,29 @@ actor DataSourceManager {
                 do {
                     let quote = try await source.fetchQuote()
                     await self.updateQuote(quote, for: sourceID)
+                    if retryCount > 0 {
+                        GoldPriceLog.debug("数据源 [\(sourceID)] 恢复，之前连续失败 \(retryCount) 次")
+                    }
                     retryCount = 0
                     await self.maybeUpsertDailyPrice(quote)
                 } catch {
                     retryCount += 1
-                    if retryCount > 3 {
+                    if retryCount > Self.maxPollRetries {
                         await self.clearQuote(for: sourceID)
+                        GoldPriceLog.warn("数据源 [\(sourceID)] 连续失败 \(Self.maxPollRetries) 次，进入 \(Int(Self.pollCooldownSeconds / 60)) 分钟冷却")
+                        try? await Task.sleep(for: .seconds(Self.pollCooldownSeconds))
+                        retryCount = 0
+                        continue
                     }
-                    GoldPriceLog.warn("数据源 [\(sourceID)] 拉取失败 (重试 \(retryCount)/3): \(error.localizedDescription)")
+                    GoldPriceLog.warn("数据源 [\(sourceID)] 拉取失败 (重试 \(retryCount)/\(Self.maxPollRetries)): \(error.localizedDescription)")
                 }
 
                 let interval = source.refreshInterval
-                let backoff = min(Double(retryCount) * interval, 60)
-                try? await Task.sleep(for: .seconds(interval + backoff))
+                // 成功 → 正常间隔；失败 → 指数退避 (10s/20s/40s)，不超过正常间隔
+                let sleepSeconds: Double = retryCount > 0
+                    ? min(pow(2.0, Double(retryCount - 1)) * 10, interval)
+                    : interval
+                try? await Task.sleep(for: .seconds(sleepSeconds))
             }
         }
     }

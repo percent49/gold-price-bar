@@ -5,20 +5,24 @@ struct MenuBarLabelView: View {
     @ObservedObject var viewModel: GoldPriceViewModel
 
     var body: some View {
-        Text(alertText)
-            .font(GoldPriceTheme.font(12, weight: .black))
-            .foregroundStyle(viewModel.alertTriggered ? .yellow : GoldPriceTheme.textPrimary)
-            .monospacedDigit()
+        HStack(spacing: 2) {
+            if viewModel.alertTriggered || viewModel.alertPrice != nil {
+                Image(systemName: "bell.fill")
+                    .font(.system(size: 10))
+                    .foregroundStyle(viewModel.alertTriggered ? .yellow : GoldPriceTheme.textSecondary)
+            }
+            Text(alertPriceText)
+                .font(GoldPriceTheme.font(12, weight: .black))
+                .foregroundStyle(viewModel.alertTriggered ? .yellow : GoldPriceTheme.textPrimary)
+                .monospacedDigit()
+        }
     }
 
-    private var alertText: String {
-        guard viewModel.alertTriggered else {
-            if viewModel.alertPrice != nil {
-                return "🔔\(viewModel.menuBarTitle)"
-            }
-            return viewModel.menuBarTitle
+    private var alertPriceText: String {
+        if viewModel.alertTriggered {
+            return viewModel.alertFlashOn ? viewModel.menuBarTitle : "! 金价到了 !"
         }
-        return viewModel.alertFlashOn ? viewModel.menuBarTitle : "! 金价到了 !"
+        return viewModel.menuBarTitle
     }
 }
 
@@ -39,9 +43,14 @@ struct MenuBarPanelView: View {
                     HStack(alignment: .top) {
                         VStack(alignment: .leading, spacing: 4) {
                             ForEach(msg.components(separatedBy: "\n"), id: \.self) { line in
-                                Text("🔔 \(line)")
-                                    .font(GoldPriceTheme.font(line.hasPrefix("触发时间") ? 12 : 14, weight: .black))
-                                    .foregroundStyle(line.hasPrefix("触发时间") ? GoldPriceTheme.textSecondary : GoldPriceTheme.accentStrong)
+                                HStack(spacing: 4) {
+                                    Image(systemName: "bell.fill")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.yellow)
+                                    Text(line)
+                                        .font(GoldPriceTheme.font(line.hasPrefix("触发时间") ? 12 : 14, weight: .black))
+                                        .foregroundStyle(line.hasPrefix("触发时间") ? GoldPriceTheme.textSecondary : GoldPriceTheme.accentStrong)
+                                }
                             }
                         }
 
@@ -195,9 +204,14 @@ struct MenuBarPanelView: View {
         PixelPanel(fill: GoldPriceTheme.surface, padding: 10) {
             if let alertDesc = viewModel.alertDescription {
                 HStack {
-                    Text("🔔 \(alertDesc)")
-                        .font(GoldPriceTheme.font(12, weight: .bold))
-                        .foregroundStyle(GoldPriceTheme.textPrimary)
+                    HStack(spacing: 4) {
+                        Image(systemName: "bell.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(GoldPriceTheme.accentStrong)
+                        Text(alertDesc)
+                            .font(GoldPriceTheme.font(12, weight: .bold))
+                            .foregroundStyle(GoldPriceTheme.textPrimary)
+                    }
 
                     Spacer()
 

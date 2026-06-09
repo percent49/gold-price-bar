@@ -38,6 +38,17 @@ struct GoldPriceService {
         return URLSession(configuration: configuration)
     }()
 
+    /// 绕过系统代理（Clash）避免 TLS 错误
+    private static let goldAPISession: URLSession = {
+        let config = URLSessionConfiguration.ephemeral
+        config.connectionProxyDictionary = [:]
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        config.timeoutIntervalForRequest = 12
+        config.timeoutIntervalForResource = 15
+        config.waitsForConnectivity = false
+        return URLSession(configuration: config)
+    }()
+
     let session: URLSession
 
     init(session: URLSession = GoldPriceService.defaultSession) {
@@ -92,7 +103,7 @@ struct GoldPriceService {
     }
 
     private func fetchFromGoldAPI() async throws -> GoldQuote {
-        async let usdToCNYRate = fetchUSDtoCNYRateSafely()
+        async let kitcoRate = fetchUSDtoCNYRateSafely()
 
         var request = URLRequest(url: Self.goldAPIEndpoint)
         request.timeoutInterval = 12
@@ -101,7 +112,8 @@ struct GoldPriceService {
         request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
         request.setValue("no-cache", forHTTPHeaderField: "Pragma")
 
-        let (data, response) = try await session.data(for: request)
+        // gold-api.com 也绕代理避免 TLS 错误
+        let (data, response) = try await Self.goldAPISession.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw GoldPriceServiceError.invalidResponse
@@ -120,6 +132,9 @@ struct GoldPriceService {
         }
         let fetchedAt = Date()
 
+        // CNY 汇率降级：Kitco → 数据库 → 硬兜底
+        let usdToCNYRate = await resolveCNYRate(kitcoRate: await kitcoRate)
+
         return GoldQuote(
             pricePerOunce: payload.price,
             fetchedAt: fetchedAt,
@@ -127,8 +142,19 @@ struct GoldPriceService {
             sourceName: "gold-api.com",
             bidPerOunce: nil,
             askPerOunce: nil,
-            usdToCNYRate: await usdToCNYRate
+            usdToCNYRate: usdToCNYRate
         )
+    }
+
+    /// CNY 汇率降级链
+    private func resolveCNYRate(kitcoRate: Double?) async -> Double? {
+        if let rate = kitcoRate, rate > 0 { return rate }
+        if let dbRate = await DatabaseManager.shared.getLatestPrice(sourceID: "usdcny")?.close, dbRate > 0 {
+            GoldPriceLog.warn("CNY 汇率降级至数据库: \(String(format: "%.4f", dbRate))")
+            return dbRate
+        }
+        GoldPriceLog.warn("CNY 汇率降级至硬兜底 7.25")
+        return 7.25
     }
 
     private func fetchKitcoPayload() async throws -> KitcoPagePayload {

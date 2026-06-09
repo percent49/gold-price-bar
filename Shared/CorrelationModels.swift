@@ -1,6 +1,7 @@
 import Foundation
 
 enum TimeWindow: String, CaseIterable, Sendable, Codable {
+    case all = "ALL"
     case days30 = "30D"
     case days90 = "90D"
     case days180 = "180D"
@@ -8,6 +9,7 @@ enum TimeWindow: String, CaseIterable, Sendable, Codable {
 
     var days: Int {
         switch self {
+        case .all: return 9999  // 哨兵值，CorrelationEngine 特殊处理
         case .days30: return 30
         case .days90: return 90
         case .days180: return 180
@@ -15,7 +17,15 @@ enum TimeWindow: String, CaseIterable, Sendable, Codable {
         }
     }
 
-    var displayName: String { rawValue }
+    var displayName: String {
+        switch self {
+        case .all: return "全部"
+        case .days30: return "30D"
+        case .days90: return "90D"
+        case .days180: return "180D"
+        case .year1: return "1Y"
+        }
+    }
 }
 
 struct CorrelationResult: Sendable, Codable, Equatable {

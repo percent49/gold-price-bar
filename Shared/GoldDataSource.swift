@@ -11,6 +11,18 @@ final class GoldDataSource: DataSource, @unchecked Sendable {
     private let apiKey: String
     private static let goldAPIEndpoint = URL(string: "https://api.gold-api.com/price/XAU")!
 
+    /// 绕过系统代理（Clash）避免 TLS 错误
+    private static let goldAPISession: URLSession = {
+        let config = URLSessionConfiguration.ephemeral
+        config.connectionProxyDictionary = [:]
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        config.timeoutIntervalForRequest = 12
+        config.timeoutIntervalForResource = 15
+        config.waitsForConnectivity = false
+        config.httpShouldSetCookies = false
+        return URLSession(configuration: config)
+    }()
+
     init(apiKey: String = ProcessInfo.processInfo.environment["FRED_API_KEY"] ?? "",
          session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
@@ -61,7 +73,7 @@ final class GoldDataSource: DataSource, @unchecked Sendable {
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("GoldPriceMac/1.0", forHTTPHeaderField: "User-Agent")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await Self.goldAPISession.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw DataSourceError.invalidResponse
         }
@@ -76,6 +88,9 @@ final class GoldDataSource: DataSource, @unchecked Sendable {
             throw DataSourceError.invalidPayload
         }
 
+        // CNY 汇率多级降级：Kitco（已失败才到这里，但仍试一次）→ DB 最新汇率 → 硬兜底
+        let cnyRate = await resolveCNYFallback()
+
         return DataSourceQuote(
             price: payload.price,
             bid: nil,
@@ -84,8 +99,22 @@ final class GoldDataSource: DataSource, @unchecked Sendable {
             sourceUpdatedAt: payload.updatedAt,
             sourceName: "gold-api.com",
             sourceID: id,
-            currency: "USD"
+            currency: "USD",
+            usdToCNYRate: cnyRate
         )
+    }
+
+    /// CNY 汇率降级链：Kitco（尝试一次）→ 数据库 FRED 最新值 → 7.25 硬兜底
+    private func resolveCNYFallback() async -> Double? {
+        if let rate = try? await parser.fetchUSDtoCNYRate(), rate > 0 {
+            return rate
+        }
+        if let dbRate = await DatabaseManager.shared.getLatestPrice(sourceID: "usdcny")?.close, dbRate > 0 {
+            GoldPriceLog.warn("CNY 汇率降级至数据库: \(String(format: "%.4f", dbRate))")
+            return dbRate
+        }
+        GoldPriceLog.warn("CNY 汇率降级至硬兜底 7.25")
+        return 7.25
     }
 }
 

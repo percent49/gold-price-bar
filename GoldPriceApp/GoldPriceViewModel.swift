@@ -34,12 +34,152 @@ final class GoldPriceViewModel: ObservableObject {
     @Published private(set) var dataPointCounts: [String: Int] = [:]
     @Published private(set) var dataSyncedAt: Date?
     @Published private(set) var isBackfilling: Bool = false
+    @Published private(set) var dataSourceStats: [DataSourceStat] = []
+    @Published var correlationWindow: TimeWindow = .all
+    @Published var isCustomDateRange = false
+    @Published var correlationStartDate: Date = Date().addingTimeInterval(-365 * 24 * 3600)
+    @Published var correlationEndDate: Date = Date()
+    @Published var chartTimeRange: ChartTimeRange = .realtime
+    @Published var chartDailyPoints: [GoldPricePoint] = []
+    @Published var selectedChartSource: String = "gold"
+
+    var chartSourceID: String { selectedChartSource }
+    var chartSourceName: String {
+        ["gold": "黄金", "silver": "白银", "oil": "原油",
+         "usdcny": "汇率", "dxy": "美元指数", "ust10y": "10Y美债"][selectedChartSource] ?? selectedChartSource
+    }
+    var chartSourceUnit: String {
+        ["gold": "USD/盎司", "silver": "USD/盎司", "oil": "USD/桶",
+         "usdcny": "CNY/USD", "dxy": "指数", "ust10y": "%"][selectedChartSource] ?? ""
+    }
+
+    func selectChartSource(_ sourceID: String) {
+        selectedChartSource = sourceID
+        Task { await refreshChartData() }
+    }
+
+    func refreshChartData() async {
+        let daily = await loadChartDailyPoints()
+        await MainActor.run { chartDailyPoints = daily }
+    }  // 默认一年前
 
     struct OtherSourceItem: Identifiable {
         let id: String
         let name: String
         let priceText: String
         let unit: String
+    }
+
+    enum ChartTimeRange: String, CaseIterable, Identifiable {
+        case realtime = "实时"
+        case days7 = "7天"
+        case days30 = "30天"
+        case days90 = "90天"
+        case year1 = "1年"
+        case all = "全部"
+
+        var id: String { rawValue }
+
+        var days: Int? {
+            switch self {
+            case .realtime: return nil
+            case .days7: return 7
+            case .days30: return 30
+            case .days90: return 90
+            case .year1: return 365
+            case .all: return nil
+            }
+        }
+    }
+
+    struct DataSourceStat: Identifiable {
+        let id: String
+        let name: String
+        let unit: String
+        let pointCount: Int
+        let earliestDate: Date?
+        let latestDate: Date?
+        let hasLiveQuote: Bool
+
+        /// 距离今天有多少天的数据缺口（>0 表示有缺失）
+        var gapDays: Int {
+            guard let latest = latestDate else { return 999 }
+            let calendar = Calendar.current
+            let today = calendar.startOfDay(for: Date())
+            let latestDay = calendar.startOfDay(for: latest)
+            return max(0, calendar.dateComponents([.day], from: latestDay, to: today).day ?? 0)
+        }
+
+        var latestDateText: String {
+            guard let latest = latestDate else { return "--" }
+            let f = DateFormatter()
+            f.dateFormat = "MM/dd"
+            return f.string(from: latest)
+        }
+
+        var earliestDateText: String {
+            guard let earliest = earliestDate else { return "--" }
+            let f = DateFormatter()
+            f.dateFormat = "yyyy/MM"
+            return f.string(from: earliest)
+        }
+
+        var statusText: String {
+            if pointCount == 0 { return "无数据" }
+            if gapDays <= 1 { return "最新" }
+            return "缺 \(gapDays) 天"
+        }
+
+        var isStale: Bool { gapDays > 1 }
+    }
+
+    var usdToCNYRate: Double? { quote?.usdToCNYRate }
+
+    /// 图表 Y 值（根据当前币种）
+    var chartYValues: [Double] {
+        let points = chartHistory.map(\.pricePerOunce)
+        guard preferredCurrency == .cnyPerGram, let rate = usdToCNYRate, rate > 0 else {
+            return points
+        }
+        return points.map { $0 * rate / GoldPriceFormatting.gramsPerTroyOunce }
+    }
+
+    /// 图表 Y 轴标签
+    var chartYLabel: String {
+        switch selectedChartSource {
+        case "gold":     return preferredCurrency == .cnyPerGram ? "¥" : "$"
+        case "silver":   return "$"
+        case "oil":      return "$"
+        case "usdcny":   return "¥"
+        case "dxy":      return ""
+        case "ust10y":   return ""
+        default:         return ""
+        }
+    }
+    var chartYValueFormat: (Double) -> String {
+        switch selectedChartSource {
+        case "gold":     return { $0 < 1000 ? String(format: "%.1f", $0) : String(format: "%.0f", $0) }
+        case "silver":   return { String(format: "%.1f", $0) }   // $32.5
+        case "oil":      return { String(format: "%.1f", $0) }   // $68.5
+        case "usdcny":   return { String(format: "%.4f", $0) }   // 7.1234
+        case "dxy":      return { String(format: "%.1f", $0) }   // 104.3
+        case "ust10y":   return { String(format: "%.2f%%", $0) } // 4.25%
+        default:         return { String(format: "%.1f", $0) }
+        }
+    }
+
+    /// 提醒价位（图表 Y 坐标）
+    var alertPriceY: Double? {
+        guard let alertPrice else { return nil }
+        switch alertCurrency {
+        case .usdPerOunce:
+            return alertPrice
+        case .cnyPerGram:
+            // alertPrice 本身就是 CNY/克，图表 CNY 模式下直接用；USD 模式下需转换
+            if preferredCurrency == .cnyPerGram { return alertPrice }
+            guard let rate = usdToCNYRate, rate > 0 else { return nil }
+            return (alertPrice * GoldPriceFormatting.gramsPerTroyOunce) / rate
+        }
     }
 
     private var alertFlashTimer: Timer?
@@ -64,6 +204,21 @@ final class GoldPriceViewModel: ObservableObject {
         let savedAlert = userDefaults.double(forKey: Self.alertPriceKey)
         self.alertPrice = savedAlert == 0 ? nil : savedAlert
         self.alertHistory = Self.loadAlertHistory(from: userDefaults)
+        if let raw = userDefaults.string(forKey: "correlation_window"),
+           let window = TimeWindow(rawValue: raw) {
+            self.correlationWindow = window
+        }
+        self.isCustomDateRange = userDefaults.bool(forKey: "correlation_custom_range")
+        if let savedStart = userDefaults.object(forKey: "correlation_start_date") as? Date {
+            self.correlationStartDate = savedStart
+        }
+        if let saved = userDefaults.object(forKey: "correlation_end_date") as? Date {
+            self.correlationEndDate = saved
+        }
+        if let raw = userDefaults.string(forKey: "chart_time_range"),
+           let range = ChartTimeRange(rawValue: raw) {
+            self.chartTimeRange = range
+        }
 
         if autoStart {
             GoldPriceLog.appStart()
@@ -484,18 +639,74 @@ final class GoldPriceViewModel: ObservableObject {
 
     func syncMultiSource() {
         Task {
-            let quotes = await dataSourceManager.quotes
-            let counts = await dataSourceManager.db.countAllPoints()
-            let corr = await dataSourceManager.correlations
-            await MainActor.run {
-                sourceQuotes = quotes
-                otherSourceItems = buildOtherItems(quotes: quotes)
-                dataPointCounts = counts
-                dataSyncedAt = Date()
-                correlations = corr
-                let totalPoints = counts.values.reduce(0, +)
-                isBackfilling = totalPoints < 365 * 4 && !quotes.isEmpty
-            }
+            await refreshCorrelations()
+        }
+    }
+
+    func refreshCorrelations() async {
+        let startDate = isCustomDateRange ? correlationStartDate : nil
+        let endDate = isCustomDateRange ? correlationEndDate : nil
+        let quotes = await dataSourceManager.quotes
+        let counts = await dataSourceManager.db.countAllPoints()
+        let corr = await dataSourceManager.computeCorrelations(from: startDate, to: endDate)
+        let stats = await dataSourceManager.db.getSourceStats(
+            sourceIDs: ["gold", "silver", "oil", "usdcny", "dxy", "ust10y"]
+        )
+        let dailyPoints = await loadChartDailyPoints()
+        await MainActor.run {
+            sourceQuotes = quotes
+            otherSourceItems = buildOtherItems(quotes: quotes)
+            dataPointCounts = counts
+            dataSourceStats = buildDataSourceStats(from: stats, quotes: quotes)
+            dataSyncedAt = Date()
+            correlations = corr
+            chartDailyPoints = dailyPoints
+            let totalPoints = counts.values.reduce(0, +)
+            isBackfilling = totalPoints < 365 * 4 && !quotes.isEmpty
+        }
+    }
+
+    private func loadChartDailyPoints() async -> [GoldPricePoint] {
+        guard chartTimeRange != .realtime else { return [] }
+        let sourceID = selectedChartSource
+        let calendar = Calendar.current
+        let to = Date()
+        let from: Date
+        if let days = chartTimeRange.days {
+            from = calendar.date(byAdding: .day, value: -days, to: to) ?? to
+        } else {
+            from = await dataSourceManager.db.getEarliestDate(sourceID: sourceID) ?? to
+        }
+        let daily = await dataSourceManager.db.getPrices(sourceID: sourceID, from: from, to: to)
+        return daily.map { GoldPricePoint(timestamp: $0.date, pricePerOunce: $0.close) }
+    }
+
+    private func buildDataSourceStats(
+        from stats: [DatabaseManager.SourceStats],
+        quotes: [String: DataSourceQuote]
+    ) -> [DataSourceStat] {
+        let names: [String: String] = [
+            "gold": "黄金", "silver": "白银", "oil": "原油",
+            "usdcny": "汇率", "dxy": "美元指数", "ust10y": "10Y美债"
+        ]
+        let units: [String: String] = [
+            "gold": "USD/盎司", "silver": "USD/盎司", "oil": "USD/桶",
+            "usdcny": "CNY/USD", "dxy": "指数", "ust10y": "%"
+        ]
+        let order = ["gold", "silver", "oil", "usdcny", "dxy", "ust10y"]
+
+        let statsDict = Dictionary(uniqueKeysWithValues: stats.map { ($0.sourceID, $0) })
+        return order.compactMap { sourceID in
+            let stat = statsDict[sourceID]
+            return DataSourceStat(
+                id: sourceID,
+                name: names[sourceID] ?? sourceID,
+                unit: units[sourceID] ?? "",
+                pointCount: stat?.count ?? 0,
+                earliestDate: stat?.earliest,
+                latestDate: stat?.latest,
+                hasLiveQuote: quotes[sourceID] != nil
+            )
         }
     }
 

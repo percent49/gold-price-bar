@@ -8,14 +8,28 @@ actor CorrelationEngine {
         self.db = db
     }
 
-    func compute(baseSourceID: String, targetSourceID: String, window: TimeWindow) async -> CorrelationResult? {
+    func compute(baseSourceID: String, targetSourceID: String, window: TimeWindow, overrideFrom: Date? = nil, overrideTo: Date? = nil) async -> CorrelationResult? {
         let calendar = Calendar.current
-        // 用数据里实际存在的最大日期，而非今天（回填尚未完成时今天可能是孤点）
         let baseLatest = await db.getLastDate(sourceID: baseSourceID) ?? Date()
         let targetLatest = await db.getLastDate(sourceID: targetSourceID) ?? Date()
-        let to = min(baseLatest, targetLatest)
-        guard let from = calendar.date(byAdding: .day, value: -window.days, to: to) else {
-            return nil
+        let to = overrideTo ?? min(baseLatest, targetLatest)
+        // 自定义日期范围时：全部=全范围，30D/90D等=相对于终止日期的窗口
+        let from: Date
+        if let customFrom = overrideFrom {
+            if window == .all {
+                from = customFrom
+            } else {
+                from = max(calendar.date(byAdding: .day, value: -window.days, to: to) ?? customFrom, customFrom)
+            }
+        } else if window == .all {
+            let baseEarliest = await db.getEarliestDate(sourceID: baseSourceID) ?? to
+            let targetEarliest = await db.getEarliestDate(sourceID: targetSourceID) ?? to
+            from = max(baseEarliest, targetEarliest)
+        } else {
+            guard let windowFrom = calendar.date(byAdding: .day, value: -window.days, to: to) else {
+                return nil
+            }
+            from = windowFrom
         }
 
         let basePrices = await db.getPrices(sourceID: baseSourceID, from: from, to: to)
@@ -35,9 +49,10 @@ actor CorrelationEngine {
                   prev.close > 0, curr.close > 0, targetClose > 0 else {
                 continue
             }
-            baseReturns.append(log(curr.close / prev.close))
             let prevDay = Calendar.current.startOfDay(for: prev.date)
             let prevTargetClose = targetByDate[prevDay] ?? targetClose
+            guard prevTargetClose > 0 else { continue }
+            baseReturns.append(log(curr.close / prev.close))
             targetReturns.append(log(targetClose / prevTargetClose))
         }
 
@@ -60,12 +75,12 @@ actor CorrelationEngine {
         return result
     }
 
-    func computeAll(baseSourceID: String, targetSourceIDs: [String]) async -> [SourceCorrelation] {
+    func computeAll(baseSourceID: String, targetSourceIDs: [String], from: Date? = nil, to: Date? = nil) async -> [SourceCorrelation] {
         var results: [SourceCorrelation] = []
         for targetID in targetSourceIDs {
             var correlations: [TimeWindow: CorrelationResult] = [:]
             for window in TimeWindow.allCases {
-                if let result = await compute(baseSourceID: baseSourceID, targetSourceID: targetID, window: window) {
+                if let result = await compute(baseSourceID: baseSourceID, targetSourceID: targetID, window: window, overrideFrom: from, overrideTo: to) {
                     correlations[window] = result
                 }
             }
@@ -82,6 +97,9 @@ actor CorrelationEngine {
     // MARK: - Math
 
     private func pearsonR(_ xs: [Double], _ ys: [Double]) -> Double {
+        guard xs.count == ys.count, xs.count >= 2,
+              xs.allSatisfy({ $0.isFinite }),
+              ys.allSatisfy({ $0.isFinite }) else { return 0 }
         let n = Double(xs.count)
         let sumX = xs.reduce(0, +)
         let sumY = ys.reduce(0, +)
