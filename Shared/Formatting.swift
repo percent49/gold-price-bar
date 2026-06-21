@@ -20,7 +20,6 @@ enum GoldPriceLog {
     private static var lastHeartbeat: [String: Date] = [:]
 
     private static var logFile: FileHandle? = {
-        rotateIfNeeded()
         let url = logURL
         if !FileManager.default.fileExists(atPath: url.path) {
             FileManager.default.createFile(atPath: url.path, contents: nil)
@@ -61,6 +60,7 @@ enum GoldPriceLog {
     }
 
     private static func ensureLogFile() {
+        rotateIfNeeded()
         if logFile == nil {
             let url = logURL
             if !FileManager.default.fileExists(atPath: url.path) {

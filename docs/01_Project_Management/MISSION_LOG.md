@@ -65,3 +65,11 @@
 
 - **已完成**：菜单栏铃铛 icon 替换为 macOS SF Symbol `bell.fill`
 - **已完成**：版本迭代 1.0.1 → 1.0.5
+
+### 2026-06-21
+
+- **已完成**：修复日志系统递归死锁导致程序无法启动的严重 Bug
+  - 根因：`Formatting.swift` 中 `logFile` 静态属性懒加载闭包内调用 `rotateIfNeeded()`，而 `rotateIfNeeded()` 又通过 `logFile?.closeFile()` 回访 `logFile`，形成递归 `dispatch_once`。macOS 26.5 的 libdispatch 检测到递归锁直接 `SIGTRAP` 杀死进程，导致程序双击无响应（连续 5 条崩溃日志均指向同一位置）
+  - 修复：将 `rotateIfNeeded()` 从 `logFile` 初始化闭包中移除，改到 `ensureLogFile()` 开头调用，此时 `logFile` 已完成初始化，不再触发 `dispatch_once`
+  - 构建产物管理：清理 `/Applications/` 中旧 Release 和 `DerivedData`/`build/` 下 3 个编译副产物，防止 Spotlight/Launchpad 扫描出多个 `GoldPrice.app` 混淆用户
+  - 长效防护：在 `~/Library/Developer/Xcode/DerivedData/` 放置 `.metadata_never_index`，彻底阻止 Spotlight 扫描编译中间产物
